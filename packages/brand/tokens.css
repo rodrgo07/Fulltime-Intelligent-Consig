@@ -1,0 +1,164 @@
+/* Fulltime Intelligent Consig — tokens visuais compartilhados (portal e desktop).
+   Paleta monocromática: preto, grafite, cinzas e branco. Cor só para estados. */
+
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+:root {
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+
+  --black: #0a0a0a;
+  --graphite-950: #111213;
+  --graphite-900: #17181a;
+  --graphite-800: #202124;
+  --graphite-700: #2c2e31;
+  --gray-600: #4a4d52;
+  --gray-500: #6b6f75;
+  --gray-400: #8d9197;
+  --gray-300: #b4b7bc;
+  --gray-200: #d6d8db;
+  --gray-100: #ececee;
+  --gray-50: #f6f6f7;
+  --white: #ffffff;
+
+  /* Estados: tons dessaturados, sempre acompanhados de texto. */
+  --state-success: #3f8f5f;
+  --state-danger: #c2483d;
+  --state-attention: #c08a2b;
+  --state-active: #e8e8e8;
+
+  --radius: 2px;
+  --hairline: 1px solid var(--line);
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 220ms;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+}
+
+/* Tema escuro (padrão do desktop). */
+[data-theme="dark"] {
+  --bg: var(--graphite-950);
+  --bg-raised: var(--graphite-900);
+  --bg-sunken: var(--black);
+  --bg-hover: var(--graphite-800);
+  --line: var(--graphite-700);
+  --line-strong: var(--gray-600);
+  --text: #f2f2f3;
+  --text-muted: var(--gray-400);
+  --text-faint: var(--gray-500);
+  --accent: var(--white);
+  --accent-text: var(--black);
+  --focus: var(--white);
+  color-scheme: dark;
+}
+
+/* Tema claro (padrão do portal). */
+[data-theme="light"] {
+  --bg: var(--white);
+  --bg-raised: var(--gray-50);
+  --bg-sunken: var(--gray-100);
+  --bg-hover: var(--gray-100);
+  --line: var(--gray-200);
+  --line-strong: var(--gray-400);
+  --text: var(--black);
+  --text-muted: var(--gray-600);
+  --text-faint: var(--gray-500);
+  --accent: var(--black);
+  --accent-text: var(--white);
+  --focus: var(--black);
+  --state-active: var(--graphite-700);
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.mono { font-family: var(--font-mono); font-feature-settings: "zero"; letter-spacing: -0.01em; }
+
+/* Indicador de estado: quadrado + rótulo. */
+.status { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.status::before { content: ""; width: 7px; height: 7px; background: currentColor; flex: none; }
+.status[data-tone="neutral"] { color: var(--text-muted); }
+.status[data-tone="active"] { color: var(--state-active); }
+.status[data-tone="active"]::before { animation: pulse 1.4s var(--ease) infinite; }
+.status[data-tone="attention"] { color: var(--state-attention); }
+.status[data-tone="success"] { color: var(--state-success); }
+.status[data-tone="danger"] { color: var(--state-danger); }
+.status[data-tone="muted"] { color: var(--text-faint); }
+
+@keyframes pulse { 50% { opacity: 0.25; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+}
+
+/* Controles base */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  height: 36px; padding: 0 var(--space-4);
+  font: 500 13px/1 var(--font-sans); letter-spacing: 0.01em;
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: transparent; color: var(--text); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.btn:hover:not(:disabled) { background: var(--bg-hover); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.btn-primary:hover:not(:disabled) { background: var(--accent); opacity: 0.88; }
+.btn-danger { color: var(--state-danger); border-color: var(--state-danger); }
+
+.field { display: grid; gap: var(--space-1); }
+.field label { font-size: 12px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.02em; }
+.field .hint { font-size: 12px; color: var(--text-faint); }
+.field .error { font-size: 12px; color: var(--state-danger); }
+.input {
+  height: 38px; padding: 0 var(--space-3); width: 100%;
+  font: 400 14px var(--font-sans); color: var(--text);
+  background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.input:hover { border-color: var(--line-strong); }
+.input:focus { outline: none; border-color: var(--focus); }
+.input[aria-invalid="true"] { border-color: var(--state-danger); }
+
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th {
+  text-align: left; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-faint); padding: var(--space-2) var(--space-3); border-bottom: var(--hairline);
+}
+.table td { padding: var(--space-3); border-bottom: var(--hairline); vertical-align: middle; }
+.table tbody tr { transition: background var(--dur-fast) var(--ease); }
+.table tbody tr:hover { background: var(--bg-hover); }
+
+.eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); }
+
+.notice { border-left: 2px solid var(--line-strong); padding: var(--space-2) var(--space-3); color: var(--text-muted); background: var(--bg-raised); }
+.notice[data-tone="danger"] { border-color: var(--state-danger); color: var(--text); }
+.notice[data-tone="attention"] { border-color: var(--state-attention); color: var(--text); }
+.notice[data-tone="success"] { border-color: var(--state-success); color: var(--text); }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

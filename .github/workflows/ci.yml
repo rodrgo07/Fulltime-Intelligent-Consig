@@ -1,0 +1,115 @@
+name: CI
+
+# Roda em todo push/PR. Cada área só é testada quando seus arquivos mudam.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      js: ${{ steps.f.outputs.js }}
+      db: ${{ steps.f.outputs.db }}
+      engine: ${{ steps.f.outputs.engine }}
+      desktop: ${{ steps.f.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: f
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            js: ['apps/portal/**', 'apps/desktop/src/**', 'packages/**', 'pnpm-lock.yaml']
+            db: ['supabase/**']
+            engine: ['services/engine/**', 'ialocal/manifest.json', 'packages/contracts/fixtures/**']
+            desktop: ['apps/desktop/**', 'packages/contracts/fixtures/**']
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.js == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @fic/contracts --filter @fic/portal --filter @fic/desktop typecheck
+      - run: pnpm --filter @fic/contracts --filter @fic/portal test
+      - run: pnpm --filter @fic/portal build
+        env:
+          VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-placeholder
+
+  database:
+    needs: changes
+    if: needs.changes.outputs.db == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # RLS, funções, retenção e Edge Functions (lógica) em Postgres real (PGlite), sem tocar o projeto da nuvem.
+      - run: pnpm --filter @fic/supabase test
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - name: Type-check das Edge Functions
+        run: deno check supabase/functions/*/index.ts
+
+  supabase-compat:
+    # Aplica as migrations num Supabase local efêmero (pg_cron, pg_net, vault, realtime reais).
+    needs: changes
+    if: needs.changes.outputs.db == 'true'
+    runs-on: ubuntu-latest
+    env:
+      PORTAL_URL: http://127.0.0.1:5174
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - run: supabase db start
+        working-directory: .
+      - run: supabase db lint --level error
+      - run: supabase stop --no-backup
+
+  engine:
+    needs: changes
+    if: needs.changes.outputs.engine == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+        working-directory: services/engine
+      - run: uv run pytest -q
+        working-directory: services/engine
+
+  desktop-native:
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: clippy }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/desktop/src-tauri }
+      - name: Placeholders de build (frontend e sidecar não são necessários para testar o Rust)
+        shell: bash
+        run: |
+          mkdir -p apps/desktop/dist apps/desktop/src-tauri/binaries
+          echo '<!doctype html>' > apps/desktop/dist/index.html
+          touch apps/desktop/src-tauri/binaries/fic-engine-x86_64-pc-windows-msvc.exe
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: apps/desktop/src-tauri
+      - run: cargo test
+        working-directory: apps/desktop/src-tauri

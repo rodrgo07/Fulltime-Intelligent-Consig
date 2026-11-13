@@ -1,0 +1,56 @@
+# Fulltime Intelligent Consig
+
+Plataforma de automação para geração de propostas de crédito consignado no Consig do Banco BMG.
+Operadores enviam solicitações por um **portal web**; um único **computador de backoffice** recebe, enfileira e
+executa as propostas com um **motor RPA** e, só em situações excepcionais, uma **IA local** sob demanda.
+
+> **Estado atual (Fase 1):** toda a infraestrutura está implementada e testada. A navegação, o preenchimento e a
+> submissão no Consig **ainda não existem** — dependem do mapeamento do sistema real. Até lá o backoffice não
+> reserva solicitações (elas ficam “Aguardando processamento”) e o painel informa o motivo.
+
+## Componentes
+
+| | Pasta | Tecnologia |
+|---|---|---|
+| Portal dos operadores | `apps/portal` | React 19, TypeScript, Vite, CSS próprio |
+| App desktop (backoffice) | `apps/desktop` | Tauri 2 (Rust) + React 19 |
+| Backend | `supabase/` | Postgres, RLS, funções SQL, pg_cron, Realtime, Edge Functions (Deno) |
+| Motor RPA + IA local | `services/engine` | Python 3.12, Playwright (Google Chrome), Ollama portátil |
+| Contratos e marca | `packages/` | tipos compartilhados, fixtures, tokens visuais |
+
+## Documentação
+
+[Arquitetura](docs/ARCHITECTURE.md) · [Contrato de API](docs/API_CONTRACT.md) · [Banco](docs/DATABASE_SCHEMA.md) ·
+[Segurança](docs/SECURITY.md) · [LGPD](docs/LGPD.md) · [Motor RPA](docs/RPA_ENGINE.md) · [IA local](docs/LOCAL_AI.md) ·
+[Atualizações](docs/UPDATE_SYSTEM.md) · [Roadmap e pendências](docs/DEVELOPMENT_ROADMAP.md) · [Changelog](CHANGELOG.md)
+
+## Desenvolvimento
+
+Requisitos: Node 24+, pnpm, Rust (stable-msvc) + Visual Studio Build Tools, uv, Windows 10/11 com WebView2.
+
+```bash
+pnpm install
+pnpm --filter @fic/supabase test        # banco (PGlite) + Edge Functions
+pnpm --filter @fic/contracts test
+pnpm --filter @fic/portal test
+cd services/engine && uv sync && uv run pytest -q
+cd apps/desktop/src-tauri && cargo test
+```
+
+Rodar:
+
+```bash
+pnpm --filter @fic/portal dev                                 # portal em http://localhost:5174 (usa apps/portal/.env.local)
+cd services/engine && uv run python scripts/build_sidecar.py  # gera o motor para o desktop
+pnpm --filter @fic/desktop tauri dev                          # app desktop
+```
+
+## Primeiros passos em um ambiente novo
+
+1. Criar o projeto Supabase; `supabase link --project-ref <ref>`; `supabase db push`; `supabase config push`.
+2. Deploy das Edge Functions e `supabase secrets set RESEND_API_KEY=… MAIL_FROM=… CRON_SECRET=… PORTAL_URL=…`.
+3. Segredos do Vault e bootstrap do primeiro admin/backoffice — `docs/DATABASE_SCHEMA.md`.
+4. Publicar o portal (Cloudflare Pages) com `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+5. Instalar o app no PC do backoffice, informar URL + chave pública (anon), entrar com MFA.
+
+Nunca use a chave `service_role` no portal ou no desktop — o app a recusa.

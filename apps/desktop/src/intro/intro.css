@@ -1,0 +1,111 @@
+/* Linha do tempo (6,2 s):
+   0.0–0.8  fundo surge
+   0.7–1.5  faixa clara abre (linha → faixa)
+   1.2–2.7  logo Fulltime
+   2.7–3.2  transição para Banco BMG
+   3.2–4.2  logo Banco BMG
+   4.2–4.8  faixa fecha em linha
+   4.7–6.2  identidade Fulltime Intelligent Consig */
+
+.intro {
+  position: fixed; inset: 0; z-index: 100; overflow: hidden;
+  background: #000; display: grid; place-items: center;
+  transition: opacity 380ms var(--ease);
+}
+.intro-leave { opacity: 0; }
+
+.intro-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; filter: grayscale(1) contrast(1.05);
+  animation: intro-bg 6.2s var(--ease) forwards;
+}
+@keyframes intro-bg {
+  0% { opacity: 0; transform: scale(1.06); }
+  13% { opacity: 0.6; }
+  70% { opacity: 0.45; }
+  100% { opacity: 0.32; transform: scale(1); }
+}
+.intro-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+/* Faixa clara: as logos oficiais têm fundo claro e não são alteradas. */
+.intro-plate {
+  position: relative; width: min(560px, 62vw); height: 200px; background: #fff;
+  transform-origin: center; transform: scaleX(0) scaleY(0.01);
+  animation: plate 6.2s var(--ease) forwards;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+@keyframes plate {
+  0%, 11% { transform: scaleX(0) scaleY(0.01); }
+  17% { transform: scaleX(1) scaleY(0.01); }
+  24% { transform: scaleX(1) scaleY(1); }
+  68% { transform: scaleX(1) scaleY(1); opacity: 1; }
+  75% { transform: scaleX(1) scaleY(0.01); opacity: 1; }
+  80%, 100% { transform: scaleX(0) scaleY(0.01); opacity: 0; }
+}
+
+.intro-logo {
+  position: absolute; inset: 0; margin: auto; max-width: 70%; max-height: 62%; object-fit: contain;
+  opacity: 0; will-change: opacity, transform, filter;
+}
+.intro-logo-fulltime { animation: logo-a 6.2s var(--ease) forwards; }
+.intro-logo-bmg { max-height: 74%; animation: logo-b 6.2s var(--ease) forwards; }
+
+@keyframes logo-a {
+  0%, 20% { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+  28% { opacity: 1; transform: none; filter: none; }
+  42% { opacity: 1; transform: none; filter: none; }
+  48%, 100% { opacity: 0; transform: translateY(-8px); filter: blur(6px); }
+}
+@keyframes logo-b {
+  0%, 46% { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+  53% { opacity: 1; transform: none; filter: none; }
+  66% { opacity: 1; transform: none; filter: none; }
+  70%, 100% { opacity: 0; filter: blur(4px); }
+}
+
+.intro-identity {
+  position: absolute; display: grid; justify-items: center; gap: 14px; color: #f2f2f3; text-align: center;
+}
+.intro-rule {
+  width: 280px; height: 1px; background: rgba(255, 255, 255, 0.7);
+  transform: scaleX(0); animation: rule 6.2s var(--ease) forwards;
+}
+@keyframes rule {
+  0%, 76% { transform: scaleX(0); }
+  84%, 100% { transform: scaleX(1); }
+}
+.intro-wordmark {
+  margin: 0; font: 300 34px/1.1 var(--font-sans); letter-spacing: 0.32em; text-transform: uppercase;
+  opacity: 0; animation: wordmark 6.2s var(--ease) forwards;
+}
+.intro-wordmark span { font-weight: 600; }
+@keyframes wordmark {
+  0%, 77% { opacity: 0; letter-spacing: 0.5em; filter: blur(8px); }
+  88%, 100% { opacity: 1; letter-spacing: 0.24em; filter: none; }
+}
+.intro-tagline {
+  margin: 0; font: 400 12px var(--font-mono); letter-spacing: 0.2em; text-transform: uppercase; color: #8d9197;
+  opacity: 0; animation: tagline 6.2s var(--ease) forwards;
+}
+@keyframes tagline {
+  0%, 85% { opacity: 0; }
+  94%, 100% { opacity: 1; }
+}
+
+.intro-skip {
+  position: absolute; right: 28px; bottom: 24px; display: inline-flex; gap: 10px; align-items: center;
+  background: transparent; border: 1px solid rgba(255, 255, 255, 0.25); color: #d6d8db;
+  font: 500 12px var(--font-sans); letter-spacing: 0.08em; padding: 8px 12px; cursor: pointer;
+  opacity: 0; animation: tagline 1s var(--ease) 0.4s forwards;
+}
+.intro-skip:hover { border-color: #fff; color: #fff; }
+.intro-skip kbd { font: 11px var(--font-mono); color: #8d9197; }
+
+/* Movimento reduzido: só a identidade, sem vídeo. */
+.intro-reduced .intro-plate { display: none; }
+.intro-reduced .intro-rule, .intro-reduced .intro-wordmark, .intro-reduced .intro-tagline {
+  animation: none; opacity: 1; transform: none; filter: none;
+}

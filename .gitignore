@@ -1,0 +1,20 @@
+node_modules/
+dist/
+target/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+# binários e modelos da IA local nunca vão para o git
+ialocal/bin/
+ialocal/models/
+ialocal/*.zip
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/gen/
+coverage/
+*.log

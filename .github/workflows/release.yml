@@ -1,0 +1,107 @@
+name: Release
+
+# staging: todo push em develop gera uma versão de homologação (pre-release "staging", app separado).
+# production: somente tag vX.Y.Z, após aprovação no GitHub Environment "production".
+on:
+  push:
+    branches: [develop]
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging' }}
+    env:
+      CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pré-condições (chave pública e assinatura configuradas)
+        shell: bash
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          HAS_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          [ -n "$PUBKEY" ] || { echo "::error::Defina a variável TAURI_UPDATER_PUBKEY (docs/UPDATE_SYSTEM.md)"; exit 1; }
+          [ "$HAS_KEY" = "true" ] || { echo "::error::Defina o secret TAURI_SIGNING_PRIVATE_KEY"; exit 1; }
+
+      - name: Versão
+        id: v
+        shell: bash
+        run: |
+          base=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          if [ "$CHANNEL" = production ]; then
+            tag="${GITHUB_REF_NAME#v}"
+            [ "$tag" = "$base" ] || { echo "::error::Tag v$tag diferente da versão $base em tauri.conf.json"; exit 1; }
+            echo "version=$base" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$base-staging.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configuração do canal (sem segredos — chave pública e endpoint)
+        shell: bash
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          if [ "$CHANNEL" = production ]; then
+            endpoint="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json"
+            ident="br.com.fulltime.intelligentconsig"; name="Fulltime Intelligent Consig"
+          else
+            endpoint="https://github.com/${GITHUB_REPOSITORY}/releases/download/staging/latest.json"
+            ident="br.com.fulltime.intelligentconsig.staging"; name="Fulltime Intelligent Consig (Homologação)"
+          fi
+          node -e '
+            const [ver, ident, name, endpoint, pubkey] = process.argv.slice(1);
+            require("fs").writeFileSync("apps/desktop/src-tauri/tauri.channel.conf.json", JSON.stringify({
+              version: ver, identifier: ident, productName: name,
+              bundle: { createUpdaterArtifacts: true },
+              plugins: { updater: { pubkey, endpoints: [endpoint] } }
+            }, null, 2));
+          ' "$VERSION" "$ident" "$name" "$endpoint" "$PUBKEY"
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: astral-sh/setup-uv@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/desktop/src-tauri }
+
+      - name: Testes antes de publicar
+        shell: bash
+        run: |
+          pnpm --filter @fic/supabase --filter @fic/contracts --filter @fic/portal test
+          (cd services/engine && uv sync --frozen && uv run pytest -q)
+          mkdir -p apps/desktop/dist && echo '<!doctype html>' > apps/desktop/dist/index.html
+          (cd apps/desktop/src-tauri && cargo test)
+
+      - name: Sidecar do motor RPA
+        working-directory: services/engine
+        run: uv run python scripts/build_sidecar.py
+
+      - name: Build, assinatura e publicação
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FIC_CHANNEL: ${{ env.CHANNEL }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          args: --config src-tauri/tauri.channel.conf.json
+          tagName: ${{ env.CHANNEL == 'production' && github.ref_name || 'staging' }}
+          releaseName: ${{ env.CHANNEL == 'production' && format('Fulltime Intelligent Consig {0}', github.ref_name) || 'Homologação (staging)' }}
+          releaseBody: ${{ env.CHANNEL == 'production' && 'Versão aprovada. Notas em CHANGELOG.md.' || format('Build de homologação {0} — commit {1}', steps.v.outputs.version, github.sha) }}
+          releaseDraft: false
+          prerelease: ${{ env.CHANNEL != 'production' }}
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true

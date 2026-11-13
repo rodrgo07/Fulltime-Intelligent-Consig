@@ -1,0 +1,8 @@
+{
+  "name": "@fic/contracts",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "vitest": "5.1.0", "typescript": "7.0.2" }
+}
