@@ -10,10 +10,6 @@ __pycache__/
 !.env.example
 *.key
 *.pem
-# binários e modelos da IA local nunca vão para o git
-ialocal/bin/
-ialocal/models/
-ialocal/*.zip
 apps/desktop/src-tauri/binaries/
 apps/desktop/src-tauri/gen/
 coverage/

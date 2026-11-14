@@ -7,25 +7,16 @@ Regras:
 - Etapas usam seletores/elementos (Playwright), nunca coordenadas fixas.
 - side_effect=True marca a etapa que pode criar/alterar algo no Consig (ponto sem retorno):
   antes dela o executor exige que o desktop registre o marco no banco.
-- allowed_recoveries limita o que a IA pode sugerir para essa etapa.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import Any, ClassVar
 
 from .session import ConsigSession
 
-
-class Recovery(StrEnum):
-    """Ações de recuperação que a IA pode SUGERIR. A execução é sempre do código determinístico."""
-
-    RETRY_STEP = "retry_step"
-    WAIT_AND_RETRY = "wait_and_retry"
-    ESCALATE = "escalate"
 
 
 @dataclass
@@ -58,7 +49,6 @@ class Step:
     name: ClassVar[str]
     side_effect: ClassVar[bool] = False
     timeout_s: ClassVar[float] = 60
-    allowed_recoveries: ClassVar[frozenset[Recovery]] = frozenset({Recovery.ESCALATE})
 
     async def run(self, ctx: StepContext) -> ProposalResult | None:
         raise NotImplementedError

@@ -14,7 +14,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-pub const CONTRACT_VERSION: u64 = 1;
+pub const CONTRACT_VERSION: u64 = 2;
 
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]
 pub struct JobEvent {

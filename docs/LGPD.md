@@ -74,10 +74,9 @@ escopo via auditoria, registrar, comunicar a ANPD e titulares conforme a Resolu�
 
 ## 7. Relatório de Impacto (RIPD) [VALIDAR]
 
-Recomendado elaborar antes da produção: tratamento automatizado de dados financeiros/pessoais em volume,
-uso de IA local para interpretar telas que podem conter dados pessoais, e dependência de provedores
-estrangeiros. A IA **não** toma decisões sobre o titular (art. 20): só sugere recuperação técnica de tela,
-com validação determinística e intervenção humana.
+Recomendado elaborar antes da produção: tratamento automatizado de dados financeiros/pessoais em volume e
+dependência de provedores estrangeiros. O sistema **não** toma decisões sobre o titular (art. 20): telas
+inesperadas vão para intervenção humana.
 
 ## 8. Checklist antes de dados reais
 

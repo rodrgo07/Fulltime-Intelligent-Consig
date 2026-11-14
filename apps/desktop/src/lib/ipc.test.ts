@@ -23,7 +23,7 @@ describe("errorMessage", () => {
   });
 
   it("todo código de erro do motor RPA tem mensagem", () => {
-    const codes = collect(engine, /code\s*=\s*"([A-Z][A-Z0-9_]+)"/g).concat(collect(engine, /"(ENGINE_BUSY|CONTRACT_MISMATCH|AI_RUNTIME_MISSING|MODEL_NOT_IN_MANIFEST)"/g));
+    const codes = collect(engine, /code\s*=\s*"([A-Z][A-Z0-9_]+)"/g).concat(collect(engine, /"(ENGINE_BUSY|CONTRACT_MISMATCH)"/g));
     expect(codes).toEqual(expect.arrayContaining(["WORKFLOW_NOT_READY", "SESSION_UNAVAILABLE", "BROWSER_MISSING"]));
     expect(codes.filter((c) => isFallback(errorMessage({ code: c })))).toEqual([]);
   });

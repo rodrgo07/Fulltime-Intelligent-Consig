@@ -50,6 +50,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
   `ended`, com timeout de segurança). Mantidos: pular com Esc/Enter/Espaço a partir da 2ª execução e modo de
   movimento reduzido (só o nome). Removido o fundo antigo `intro-bg.mp4`.
 
+### Removido
+- IA local (Ollama portátil, `ialocal/`, `services/engine/src/fic_ai`, comandos `ai_*` e `config.ai` no desktop,
+  RPCs `ai.*` no motor, seção de IA em Configurações e `D6`). Tela inesperada no Consig vai direto para confirmação
+  humana. Contrato sobe para v2: saem `AI_RUNTIME_MISSING`/`MODEL_NOT_IN_MANIFEST` e o campo `ai` de
+  `engine.health`; `psutil`/`httpx` saem do motor. Docs (`ARCHITECTURE`, `API_CONTRACT`, `SECURITY`, `LGPD`,
+  `RPA_ENGINE`, `DEVELOPMENT_ROADMAP`, `LOCAL_AI`) atualizados.
+
 ### Corrigido
 - `dispatch-notifications`: `RESEND_API_KEY`/`MAIL_FROM` só são lidos quando há notificação a enviar; com a fila
   vazia responde 200 `{processed: 0}` mesmo sem Resend configurado (health check da chave de servidor e do cron).

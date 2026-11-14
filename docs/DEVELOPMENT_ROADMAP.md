@@ -2,8 +2,8 @@
 
 ## Fase 1 — Infraestrutura (esta entrega)
 
-Concluído e testado: repositório, banco (migrations, RLS, fila, retenção, auditoria, notificações), Edge Functions,
-portal, motor RPA (estrutura), IA local sob demanda, app desktop, intro, CI/CD e updater. Ver `CHANGELOG.md`.
+Concluído e testado: repositório, banco (migrations, RLS, fila, retenção, auditoria), portal, motor RPA
+(estrutura), app desktop, intro, CI/CD e updater. Ver `CHANGELOG.md`.
 
 ## Pendências que dependem do usuário
 
@@ -29,8 +29,8 @@ portal, motor RPA (estrutura), IA local sob demanda, app desktop, intro, CI/CD e
 
 ## Fase 3 — Operação assistida
 
-- Execução com acompanhamento humano; ajuste de timeouts; catálogo de telas inesperadas.
-- Avaliação da IA local no hardware real (escolha do modelo, métricas de acerto vs. escalonamento).
+- Execução com acompanhamento humano; ajuste de timeouts; catálogo de telas inesperadas (todas vão para
+  confirmação humana).
 - Alertas (notificação do Windows ao entrar em “aguardando confirmação”).
 
 ## Fase 4 — Evoluções previstas

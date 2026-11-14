@@ -24,8 +24,6 @@
 | Clickjacking | `frame-ancestors 'none'` |
 | Comandos internos expostos (Tauri) | capability mínima (`core:default`), comandos próprios validam entrada, CSP no WebView, `freezePrototype` |
 | Motor chama o host indevidamente | desktop só aceita `host.confirm_side_effect`; demais `host.*` são descartados |
-| IA executa comandos | IA não tem ferramentas; responde JSON de lista fechada; executor valida; sem acesso a arquivos/sistema |
-| Binário de IA adulterado | download do Ollama oficial com SHA-256 fixado; zip validado contra path traversal |
 | Atualização maliciosa | updater do Tauri com assinatura minisign; chave pública embutida; build só por CI com tag aprovada |
 | Logs com dados pessoais | logs só com IDs técnicos; redação automática de CPF/e-mail/números longos; payload nunca é logado |
 | Perda de resultado | arquivo local de resultados pendentes + `complete_job` idempotente |
@@ -53,10 +51,9 @@ próprio (Resend) configurado: no plano free o Supabase recusa templates com o S
 ## Windows
 
 - App instalado por usuário (NSIS `currentUser`), sem privilégios de administrador.
-- Dados do app em `%LOCALAPPDATA%\br.com.fulltime.intelligentconsig\` (perfil do Chrome, `ialocal`, resultados pendentes).
+- Dados do app em `%LOCALAPPDATA%\br.com.fulltime.intelligentconsig\` (perfil do Chrome, resultados pendentes).
   Arquivos temporários de download são apagados em qualquer falha.
-- Motor e IA rodam como processos filhos sem janela; Ollama escuta só em `127.0.0.1` com prioridade baixa.
-- A IA não pode alterar configurações do sistema: não recebe ferramentas e o motor não expõe execução de comandos.
+- O motor roda como processo filho sem janela.
 
 ## Repositório público
 

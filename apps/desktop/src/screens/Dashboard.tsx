@@ -7,9 +7,6 @@ import type { Screen } from "../App";
 import type { SettingsTab } from "./Settings";
 
 const ENGINE_LABEL: Record<string, string> = { ready: "Disponível", starting: "Iniciando", crashed: "Falhou — reiniciando", missing: "Não encontrado" };
-const AI_LABEL: Record<string, string> = {
-  disabled: "Desativada", runtime_missing: "Runtime não instalado", model_not_selected: "Sem modelo", ready: "Pronta (sob demanda)", busy: "Em uso", unknown: "—",
-};
 
 type Props = {
   auth: AuthStatus; info: AppInfo | null; paused: boolean; update: string | null;
@@ -26,7 +23,6 @@ export function Dashboard({ auth, info, paused, update, onTogglePause, onNavigat
     ["Motor RPA", ENGINE_LABEL[w.engine_state] ?? w.engine_state, w.engine_state === "ready" ? "success" : "danger"],
     ["Fluxo do Consig", w.workflow_ready ? "Implementado" : "Não implementado", w.workflow_ready ? "success" : "attention"],
     ["Sessão do Consig", SESSION_LABEL[w.consig_session] ?? w.consig_session, w.consig_session === "authenticated" ? "success" : "muted"],
-    ["IA local", AI_LABEL[w.ai_state] ?? w.ai_state, w.ai_state === "ready" ? "success" : "muted"],
   ] : [];
 
   const storagePct = data?.storage ? Math.min(100, (data.storage.database_bytes / data.storage.limit_bytes) * 100) : 0;

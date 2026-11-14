@@ -1,1 +1,0 @@
-{ "enabled": true, "model": "qwen2.5vl:3b", "timeout_s": 90, "min_free_ram_mb": 1500, "max_cpu_percent": 85, "min_confidence": 0.8 }

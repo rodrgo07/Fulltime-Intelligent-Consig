@@ -1,7 +1,7 @@
 // Contrato v1 compartilhado entre portal e desktop (espelha supabase/migrations).
 // Regras de negócio NÃO ficam aqui: apenas tipos, rótulos e mapeamento de códigos de erro.
 
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;
 
 export const REQUEST_STATUSES = [
   "received", "queued", "preparing", "running", "awaiting_confirmation", "completed", "failed", "cancelled",
@@ -153,8 +153,6 @@ export const STATUS_REASON_LABEL: Record<string, string> = {
   NEEDS_HUMAN: "Requer confirmação humana.",
   ENGINE_BUSY: "Motor ocupado com outra execução.",
   CONTRACT_MISMATCH: "Versão do motor incompatível com o app.",
-  AI_RUNTIME_MISSING: "Runtime da IA local não instalado.",
-  MODEL_NOT_IN_MANIFEST: "Modelo de IA fora da lista aprovada.",
   // App desktop
   ENGINE_CRASHED: "O motor parou durante a execução; nada foi enviado.",
   ENGINE_CRASHED_AFTER_SIDE_EFFECT: "O motor parou depois do ponto sem retorno; confirme no Consig.",

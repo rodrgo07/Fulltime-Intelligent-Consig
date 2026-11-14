@@ -7,10 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import FakeRuntime, OkStep, ResultStep, SideEffectStep, wf
+from conftest import OkStep, ResultStep, SideEffectStep, wf
 
-from fic_ai.manifest import load_manifest
-from fic_ai.service import AiService
 from fic_rpa.app import Engine
 from fic_rpa.rpc import RpcServer
 
@@ -22,8 +20,7 @@ class Harness:
         self.reader = asyncio.StreamReader()
         self.out = io.StringIO()
         self.rpc = RpcServer(self.reader, self.out)
-        self.engine = Engine(self.rpc, tmp, workflows=workflows or {},
-                             ai=AiService(tmp / "ialocal", load_manifest(), runtime=FakeRuntime()))
+        self.engine = Engine(self.rpc, tmp, workflows=workflows or {})
         self.task = asyncio.create_task(self.rpc.serve())
         self._seen = 0
 
@@ -60,7 +57,7 @@ async def h(tmp_path: Path):
 
 
 async def test_hello_and_capabilities(h: Harness) -> None:
-    r = await h.call("engine.hello", {"contract_version": 1})
+    r = await h.call("engine.hello", {"contract_version": 2})
     assert r["result"]["capabilities"]["workflow_ready"] is False
 
 
@@ -89,14 +86,6 @@ async def test_invalid_json_line(h: Harness) -> None:
     assert m["error"]["code"] == -32700
 
 
-async def test_ai_model_must_come_from_manifest(h: Harness) -> None:
-    r = await h.call("ai.configure", {"enabled": True, "model": "modelo-qualquer:70b"})
-    assert r["error"]["data"]["code"] == "MODEL_NOT_IN_MANIFEST"
-    ok = await h.call("ai.configure", json.loads((FIXTURES / "ai.configure.params.json").read_text()), id_=2)
-    assert ok["result"]["enabled"] is True
-    assert ok["result"]["state"] == "runtime_missing"
-
-
 async def test_full_job_over_rpc_with_side_effect_confirmation(tmp_path: Path) -> None:
     h = Harness(tmp_path, workflows={"consig_proposal": lambda: wf(OkStep(), SideEffectStep(), ResultStep())})
     params = json.loads((FIXTURES / "job.execute.params.json").read_text())
@@ -113,10 +102,9 @@ async def test_full_job_over_rpc_with_side_effect_confirmation(tmp_path: Path) -
 
 
 def test_fixtures_match_protocol_models() -> None:
-    from fic_rpa.protocol import AiConfigureParams, JobEvent, JobExecuteParams, SideEffectConfirm
+    from fic_rpa.protocol import JobEvent, JobExecuteParams, SideEffectConfirm
 
     JobExecuteParams.model_validate_json((FIXTURES / "job.execute.params.json").read_text())
-    AiConfigureParams.model_validate_json((FIXTURES / "ai.configure.params.json").read_text())
     SideEffectConfirm.model_validate_json((FIXTURES / "host.confirm_side_effect.params.json").read_text())
     for name in ("completed", "failed", "escalated"):
         JobEvent.model_validate_json((FIXTURES / f"job.event.{name}.json").read_text())

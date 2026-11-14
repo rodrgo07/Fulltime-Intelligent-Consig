@@ -7,23 +7,6 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
-pub struct AiConfig {
-    pub enabled: bool,
-    pub model: Option<String>,
-    pub timeout_s: f64,
-    pub min_free_ram_mb: u32,
-    pub max_cpu_percent: f64,
-    pub min_confidence: f64,
-}
-
-impl Default for AiConfig {
-    fn default() -> Self {
-        Self { enabled: false, model: None, timeout_s: 90.0, min_free_ram_mb: 1500, max_cpu_percent: 85.0, min_confidence: 0.8 }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
 pub struct AppConfig {
     pub supabase_url: String,
     /// Chave pública (anon). Não é segredo, mas a UI só a exibe mascarada.
@@ -36,7 +19,6 @@ pub struct AppConfig {
     pub intro_seen: bool,
     pub session_max_hours: u64,
     pub worker_paused: bool,
-    pub ai: AiConfig,
 }
 
 impl Default for AppConfig {
@@ -52,7 +34,6 @@ impl Default for AppConfig {
             intro_seen: false,
             session_max_hours: 24,
             worker_paused: false,
-            ai: AiConfig::default(),
         }
     }
 }
@@ -90,12 +71,6 @@ impl AppConfig {
         }
         if !(1..=168).contains(&self.session_max_hours) {
             return Err(AppError::Code("INVALID_SESSION_HOURS"));
-        }
-        let ai = &self.ai;
-        if !(5.0..=600.0).contains(&ai.timeout_s) || ai.min_free_ram_mb < 256 || !(1.0..=100.0).contains(&ai.max_cpu_percent)
-            || !(0.5..=1.0).contains(&ai.min_confidence)
-        {
-            return Err(AppError::Code("INVALID_AI_LIMITS"));
         }
         Ok(())
     }

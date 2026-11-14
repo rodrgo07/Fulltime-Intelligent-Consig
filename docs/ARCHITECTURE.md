@@ -17,8 +17,6 @@
                                                 ┌─────▼─────┐                              │ Motor RPA (Python sidecar)    │
                                                 │  Resend   │                              │  executor · sessão · etapas   │
                                                 └───────────┘                              │  Playwright → Google Chrome   │──▶ Consig (BMG)
-                                                                                           │  fic_ai → Ollama portátil     │
-                                                                                           │  (sob demanda, 127.0.0.1)     │
                                                                                            └───────────────────────────────┘
 ```
 
@@ -32,7 +30,6 @@
 | Edge Functions | `supabase/functions` | envio de e-mail (Resend), convite de membros | regras de fila |
 | App desktop | `apps/desktop` | orquestração em segundo plano, UI operacional, integração com Windows | regras de negócio |
 | Motor RPA | `services/engine/src/fic_rpa` | executar fluxos em etapas no Consig com segurança | decidir negócio, guardar dados |
-| IA local | `services/engine/src/fic_ai`, `ialocal/` | interpretar telas inesperadas, sugerir ação de lista fechada | executar ações, usar APIs externas |
 | Atualização | `.github/workflows/release.yml` + plugin updater | builds assinados, canais, instalação verificada | instalar build não assinado |
 | Contratos | `packages/contracts` | tipos, rótulos, códigos, fixtures do JSON-RPC | regras |
 
@@ -48,8 +45,7 @@
 5. **Resultado nunca se perde**: o número de adesão é gravado em `pending-results.json` antes do envio;
    `complete_job` é idempotente e atômico (resultado + notificação + exclusão dos dados pessoais).
 6. **Realtime + consulta periódica**: eventos aceleram; a consulta garante.
-7. **IA opcional e local**: desligada por padrão, carregada sob demanda, descarregada sempre.
-8. **Login humano no Consig**: a senha do banco nunca é armazenada.
+7. **Login humano no Consig**: a senha do banco nunca é armazenada.
 
 ## Fluxo de uma solicitação
 
@@ -70,11 +66,10 @@ apps/portal            portal dos operadores (React 19 + Vite)
 apps/desktop           app Tauri 2 (src = UI React, src-tauri = Rust)
 packages/contracts     contrato TS + fixtures JSON-RPC
 packages/brand         tokens visuais e fontes (IBM Plex)
-services/engine        motor RPA (fic_rpa) + IA local (fic_ai), Python 3.12
+services/engine        motor RPA (fic_rpa), Python 3.12
 supabase/migrations    esquema versionado
 supabase/functions     Edge Functions (Deno)
 supabase/tests         testes de banco (PGlite) e das funções
-ialocal/manifest.json  runtime de IA fixado por SHA-256
 .github/workflows      CI, release, deploy
 docs/                  documentação
 SRC/                   logos oficiais (Fulltime, Banco BMG)
