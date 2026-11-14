@@ -94,3 +94,13 @@ details summary { cursor: pointer; font-size: 13px; text-decoration: underline; 
   .table td.cell-actions { justify-content: flex-end; }
   .table td.cell-actions:empty { display: none; }
 }
+
+/* ---------- proposta gerada ainda não vista */
+.badge-new {
+  margin-left: var(--space-2); padding: 1px 8px; border: 1px solid var(--state-success); background: var(--bg);
+  color: var(--state-success); font: 600 11px var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+}
+.badge-new::before { content: "● "; }
+.badge-new:hover { background: var(--bg-hover); }
+.table tr[data-new] { box-shadow: inset 3px 0 0 var(--state-success); }
+.nav-count { font-weight: 600; color: var(--text); }
