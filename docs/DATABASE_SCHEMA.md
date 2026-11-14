@@ -44,6 +44,9 @@ publicação `supabase_realtime`, privilégios de `anon`/`authenticated`/`servic
 `supabase/tests/smoke/new-keys.mjs` (`pnpm --filter @fic/supabase smoke:local`) testa num Supabase **local**
 completo as chaves novas: RPC com publishable + JWT, recusa do anônimo, Realtime como o desktop faz, convite e
 dispatch.
+`supabase/tests/smoke/b8-remote.mjs` (`smoke:b8-remote`, exige `FIC_B8_ALLOW_REMOTE=1`) faz o mesmo contra o projeto
+**remoto antes do go-live** (B8): cria usuários `@exemplo.test` com uma marca de execução, aborta se houver formulário
+ativo ou e-mail pendente e apaga tudo no fim (`finally`). `CRON_SECRET` é opcional; sem ele, só os 401 do dispatch.
 
 ## Configurações (`app_settings`)
 

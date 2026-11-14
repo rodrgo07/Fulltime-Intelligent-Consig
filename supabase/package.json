@@ -5,7 +5,8 @@
   "scripts": {
     "test": "vitest run",
     "smoke:local": "node tests/smoke/new-keys.mjs",
-    "test:live": "vitest run tests/live"
+    "test:live": "vitest run tests/live",
+    "smoke:b8-remote": "node tests/smoke/b8-remote.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16",
