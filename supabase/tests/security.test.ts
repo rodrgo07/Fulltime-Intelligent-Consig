@@ -64,7 +64,6 @@ describe("D3 — chamadas anônimas recusadas", () => {
       "public.claim_next_job('x')",
       "public.complete_job(gen_random_uuid(), 'ADE')",
       "public.storage_usage()",
-      "public.assert_admin()",
       "public.admin_set_member_active(gen_random_uuid(), false)",
     ];
     for (const c of calls) {
@@ -169,7 +168,9 @@ describe("D3 — isolamento entre operadores (RLS)", () => {
     const forged = { sub: op, aal: "aal2" as const, app_role: "backoffice", user_role: "admin" };
     expect(await errorCode(as(db, forged, (tx) => rpc(tx, "public.claim_next_job('x')")))).toBe("FORBIDDEN");
     expect(await errorCode(as(db, forged, (tx) => rpc(tx, "public.storage_usage()")))).toBe("FORBIDDEN");
-    expect(await errorCode(as(db, forged, (tx) => rpc(tx, "public.assert_admin()")))).toBe("FORBIDDEN");
+    expect(await errorCode(as(db, forged, (tx) => rpc(tx, "public.admin_set_member_active($1, false)", [op2]))))
+      .toBe("FORBIDDEN");
+    expect((await one<{ active: boolean }>("select active from public.profiles where id = $1", [op2])).active).toBe(true);
     expect((await as(db, forged, (tx) => tx.query("select * from public.app_settings"))).rows).toHaveLength(0);
   });
 
