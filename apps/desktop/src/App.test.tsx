@@ -56,6 +56,18 @@ describe("App desktop", () => {
     expect(screen.queryByText("Versão 0.3.0 disponível.")).toBeNull();
   });
 
+  it("sem IA local e sem Realtime na interface (cortes do MVP)", async () => {
+    setup();
+    await pastIntro();
+    await screen.findByText("Supabase");
+    expect(screen.queryByText(/Realtime/)).toBeNull();
+    expect(screen.queryByText("IA local")).toBeNull();
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Principal" })).getByRole("button", { name: /Configurações/ }));
+    const tabs = await screen.findByRole("navigation", { name: "Seções das configurações" });
+    expect(within(tabs).queryByRole("button", { name: "IA local" })).toBeNull();
+    expect(within(tabs).getByRole("button", { name: "Motor RPA" })).toBeTruthy();
+  });
+
   it("link para pular ao conteúdo, foco e título ao trocar de tela", async () => {
     setup();
     await pastIntro();

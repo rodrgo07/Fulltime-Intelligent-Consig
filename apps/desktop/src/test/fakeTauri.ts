@@ -4,7 +4,7 @@ import { vi } from "vitest";
 export type Handler = (args?: Record<string, unknown>) => unknown;
 
 export const DEFAULT_WORKER = {
-  engine_state: "ready", engine_version: "0.1.0", workflow_ready: false, consig_session: "closed", ai_state: "disabled",
+  engine_state: "ready", engine_version: "0.1.0", workflow_ready: false, consig_session: "closed",
   supabase_reachable: true, last_cycle_at: null, last_error: null, blocked_reason: "WORKFLOW_NOT_READY", current: null,
   pending_results: 0, processed_since_start: 0,
 };
@@ -12,7 +12,6 @@ export const DEFAULT_WORKER = {
 export const DEFAULT_CONFIG = {
   supabase_url: "https://exemplo-teste.supabase.co", supabase_anon_key: "••••", consig_start_url: "", poll_interval_s: 30,
   log_level: "INFO", autostart: true, start_minimized: false, intro_seen: true, session_max_hours: 12, worker_paused: false,
-  ai: { enabled: false, model: null, timeout_s: 60, min_free_ram_mb: 2048, max_cpu_percent: 80, min_confidence: 0.8 },
 };
 
 export function defaultHandlers(): Record<string, Handler> {
@@ -24,7 +23,7 @@ export function defaultHandlers(): Record<string, Handler> {
     intro_mark_seen: () => null,
     dashboard: () => ({
       counts: { received: 0, queued: 0, preparing: 0, running: 0, awaiting_confirmation: 0, completed: 0, failed: 0, cancelled: 0 },
-      storage: null, worker: DEFAULT_WORKER, realtime_connected: true, recent_activity: [],
+      storage: null, worker: DEFAULT_WORKER, recent_activity: [],
     }),
     worker_status: () => DEFAULT_WORKER,
     diagnostics: () => ({ chrome_installed: true }),
