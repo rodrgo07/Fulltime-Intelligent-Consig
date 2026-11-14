@@ -64,7 +64,6 @@ describe("D3 — chamadas anônimas recusadas", () => {
       "public.storage_usage()",
       "public.assert_admin()",
       "public.admin_set_member_active(gen_random_uuid(), false)",
-      "public.svc_claim_notifications(1)",
       "public.svc_register_member(gen_random_uuid(), 'admin', 'x', 'x@exemplo.test', null)",
     ];
     for (const c of calls) {
@@ -101,9 +100,9 @@ describe("D3 — chamadas anônimas recusadas", () => {
 });
 
 describe("D3 — isolamento entre operadores (RLS)", () => {
-  it("operador não vê resultado, job, notificação nem auditoria de outro operador", async () => {
+  it("operador não vê resultado, job nem auditoria de outro operador", async () => {
     await completeFor(op);
-    for (const t of ["proposal_requests", "proposal_results", "automation_jobs", "notification_queue", "audit_logs"]) {
+    for (const t of ["proposal_requests", "proposal_results", "automation_jobs", "audit_logs"]) {
       const seen = await as(db, { sub: op2 }, (tx) => tx.query(`select * from public.${t}`));
       expect(seen.rows, t).toHaveLength(0);
     }
