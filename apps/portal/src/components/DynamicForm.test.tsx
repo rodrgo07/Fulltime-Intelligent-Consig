@@ -30,6 +30,16 @@ describe("DynamicForm", () => {
     expect(screen.getByText("Campo não reconhecido.")).toBeTruthy();
   });
 
+  it("leva o foco ao primeiro campo inválido e associa a mensagem ao campo", () => {
+    render(<DynamicForm fields={fields} busy={false} onSubmit={() => {}}
+      serverErrors={[{ field: "valor", code: "BELOW_MIN" }]} />);
+    const input = screen.getByLabelText(/Valor/);
+    expect(document.activeElement).toBe(input);
+    const describedBy = input.getAttribute("aria-describedby")!.split(" ");
+    expect(describedBy.map((id) => document.getElementById(id)?.textContent)).toContain("Valor abaixo do mínimo.");
+    expect(screen.getByText(/são obrigatórios/)).toBeTruthy();
+  });
+
   it("bloqueia o formulário durante o envio", () => {
     render(<DynamicForm fields={fields} busy serverErrors={[]} onSubmit={() => {}} />);
     expect((screen.getByRole("button") as HTMLButtonElement).disabled).toBe(true);

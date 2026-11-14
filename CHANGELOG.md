@@ -4,21 +4,6 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 
 ## [Não lançado]
 
-### Corrigido
-- CI: `deno check` das Edge Functions roda dentro de `supabase/functions` (usa o `deno.json` local); na raiz o
-  Deno 2.9 exigia os pacotes npm no `node_modules` do pnpm e reescrevia o `package.json`.
-- Deploy: wrangler via `pnpm dlx` com versão fixa (o `cloudflare/wrangler-action` falhava com
-  `ERR_PNPM_ADDING_TO_ROOT`); pré-condições listam variáveis e secrets ausentes.
-- `supabase/config.toml`: removido `auth.email.enable_signup = false`, que no CLI v3 vira `auth.email.enabled = false`
-  e desligaria o login por e-mail; cadastro aberto segue bloqueado por `auth.enable_signup = false`.
-- Edge Functions compatíveis com as chaves novas: leem `SUPABASE_SECRET_KEYS`/`SUPABASE_PUBLISHABLE_KEYS`
-  (fallback para as legadas); `admin-invite` com `verify_jwt = false` e validação do JWT no código (401
-  `UNAUTHENTICATED`); CORS libera `x-client-info` e demais cabeçalhos do supabase-js (o preflight do portal falhava).
-- Desktop: aceita só chave publishable/anon, recusa `sb_secret_`/`service_role` também ao montar o cliente HTTP;
-  `apikey` do Realtime codificado na URL.
-- Migration `…0005`: `pg_net` em `extensions` (advisor `extension_in_public`), índices das FKs, RLS com
-  `(select auth.uid())`, `service_role` com acesso a `private`.
-
 ### Adicionado
 - Templates de e-mail do Auth em PT-BR (convite e recuperação) em `supabase/templates/`; aplicados após o SMTP
   próprio (Resend), exigido pelo Supabase no plano free.
@@ -36,10 +21,41 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - Testes de bugs conhecidos (`it.fails`): BUG-QA-001 (auditoria do rate limit perdida), BUG-QA-002 (resultado
   pendente bloqueia a fila após decisão humana). Regressão do BUG-QA-003 (`config.json` com `service_role` aceito na
   inicialização), corrigido no PR #4.
+- Portal e desktop: estados de carregamento, vazio e erro (com “Tentar novamente”) em todas as telas (C3).
+- `ERROR_MESSAGE` cobre todos os códigos das funções SQL e Edge Functions; `STATUS_REASON_LABEL` rotula os motivos
+  do banco, do motor e do desktop; testes que varrem as fontes e falham com código sem mensagem (C3).
+- Desktop: aviso de atualização disponível (evento `update-available` + consulta ao abrir) e tela “Abrir Consig”
+  com instruções genéricas do login humano (C4).
+- Acessibilidade WCAG 2.1 AA (C5): link “Pular para o conteúdo”, título e foco por tela, linhas da Central de
+  automação acessíveis por teclado (Esc fecha o detalhe), foco no primeiro campo inválido, chave TOTP digitável,
+  tabelas com cabeçalhos e legendas. Ver `docs/ACCESSIBILITY.md`.
+- Testes do desktop (Vitest) entram no CI e no pipeline de release.
 
 ### Alterado
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment
   `production` restrito a tags `v*` com aprovação. O deploy manual do Supabase deve ser disparado a partir de uma tag.
+- Tokens de cor ajustados para contraste AA nos dois temas (texto fraco, estados, bordas de campo) — teste de
+  contraste lê o `tokens.css` real. Foco dos campos com contorno de 2 px.
+- Portal no celular: navegação em linha própria (sem rolagem horizontal) e motivo do estado sob o status.
+
+### Corrigido
+- CI: `deno check` das Edge Functions roda dentro de `supabase/functions` (usa o `deno.json` local); na raiz o
+  Deno 2.9 exigia os pacotes npm no `node_modules` do pnpm e reescrevia o `package.json`.
+- Deploy: wrangler via `pnpm dlx` com versão fixa (o `cloudflare/wrangler-action` falhava com
+  `ERR_PNPM_ADDING_TO_ROOT`); pré-condições listam variáveis e secrets ausentes.
+- `supabase/config.toml`: removido `auth.email.enable_signup = false`, que no CLI v3 vira `auth.email.enabled = false`
+  e desligaria o login por e-mail; cadastro aberto segue bloqueado por `auth.enable_signup = false`.
+- Edge Functions compatíveis com as chaves novas: leem `SUPABASE_SECRET_KEYS`/`SUPABASE_PUBLISHABLE_KEYS`
+  (fallback para as legadas); `admin-invite` com `verify_jwt = false` e validação do JWT no código (401
+  `UNAUTHENTICATED`); CORS libera `x-client-info` e demais cabeçalhos do supabase-js (o preflight do portal falhava).
+- Desktop: aceita só chave publishable/anon, recusa `sb_secret_`/`service_role` também ao montar o cliente HTTP;
+  `apikey` do Realtime codificado na URL.
+- Migration `…0005`: `pg_net` em `extensions` (advisor `extension_in_public`), índices das FKs, RLS com
+  `(select auth.uid())`, `service_role` com acesso a `private`.
+- Portal: falha de rede ao carregar o perfil não aparece mais como “Acesso não liberado”; “Minhas solicitações”
+  não fica preso em “Carregando…” quando a primeira carga falha; falha de rede no convite vira `NETWORK`.
+- Desktop: falhas de `app_info`/`auth_status` não deixam mais a tela em branco.
+
 
 ## [0.1.0] — 2026-11-12 — Fase 1: infraestrutura
 

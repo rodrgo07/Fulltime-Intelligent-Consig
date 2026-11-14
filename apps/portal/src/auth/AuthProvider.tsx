@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import type { ApiError } from "@fic/contracts";
 import { createApi, type Api, type OperatorInfo, type Profile } from "../lib/api";
 
 type AuthState = {
@@ -10,6 +11,8 @@ type AuthState = {
   aal: "aal1" | "aal2" | null;
   /** Evento do link de e-mail (convite/recuperação): o usuário precisa definir a senha. */
   needsPassword: boolean;
+  /** Falha ao carregar perfil/operador (rede, sessão inválida). Diferente de "sem acesso". */
+  loadError: ApiError | null;
   api: Api;
   sb: SupabaseClient;
   refresh: () => Promise<void>;
@@ -26,6 +29,7 @@ export function AuthProvider({ sb, children }: { sb: SupabaseClient; children: R
   const [operator, setOperator] = useState<OperatorInfo | null>(null);
   const [aal, setAal] = useState<"aal1" | "aal2" | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<ApiError | null>(null);
   const [needsPassword, setNeedsPassword] = useState(window.location.pathname === "/definir-senha");
 
   const load = useCallback(async (s: Session | null) => {
@@ -34,6 +38,7 @@ export function AuthProvider({ sb, children }: { sb: SupabaseClient; children: R
       setProfile(null);
       setOperator(null);
       setAal(null);
+      setLoadError(null);
       setLoading(false);
       return;
     }
@@ -44,6 +49,7 @@ export function AuthProvider({ sb, children }: { sb: SupabaseClient; children: R
     ]);
     setProfile(p.ok ? p.data : null);
     setOperator(o.ok ? o.data : null);
+    setLoadError(!p.ok ? p.error : !o.ok ? o.error : null);
     setAal((level.data?.currentLevel as "aal1" | "aal2" | null) ?? "aal1");
     setLoading(false);
   }, [api, sb]);
@@ -59,7 +65,7 @@ export function AuthProvider({ sb, children }: { sb: SupabaseClient; children: R
   }, [sb, load]);
 
   const value: AuthState = {
-    loading, session, profile, operator, aal, needsPassword, api, sb,
+    loading, session, profile, operator, aal, needsPassword, loadError, api, sb,
     refresh: async () => load((await sb.auth.getSession()).data.session),
     signOut: async () => {
       await sb.auth.signOut({ scope: "local" });

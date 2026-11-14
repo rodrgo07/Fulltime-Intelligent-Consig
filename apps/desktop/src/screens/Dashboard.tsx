@@ -1,25 +1,23 @@
-import { useEffect, useState } from "react";
 import { REQUEST_STATUSES, STATUS_LABEL, STATUS_TONE } from "@fic/contracts";
 import { Pause, Play, ExternalLink } from "lucide-react";
-import { BLOCKED_LABEL, call, errorMessage, fmt, fmtBytes, type AppInfo, type AuthStatus, type Dashboard as D } from "../lib/ipc";
+import { ErrorState, Loading } from "../components/States";
+import { BLOCKED_LABEL, call, errorMessage, fmt, fmtBytes, SESSION_LABEL, type AppInfo, type AuthStatus, type Dashboard as D } from "../lib/ipc";
 import { usePolling } from "../lib/usePolling";
+import type { Screen } from "../App";
+import type { SettingsTab } from "./Settings";
 
 const ENGINE_LABEL: Record<string, string> = { ready: "Disponível", starting: "Iniciando", crashed: "Falhou — reiniciando", missing: "Não encontrado" };
-const SESSION_LABEL: Record<string, string> = {
-  closed: "Fechada", open_unverified: "Aberta (verificação não mapeada)", authenticated: "Autenticada",
-  expired: "Expirada", browser_missing: "Chrome ausente", unknown: "—",
-};
 const AI_LABEL: Record<string, string> = {
   disabled: "Desativada", runtime_missing: "Runtime não instalado", model_not_selected: "Sem modelo", ready: "Pronta (sob demanda)", busy: "Em uso", unknown: "—",
 };
 
-export function Dashboard({ auth, info, paused, onTogglePause }: { auth: AuthStatus; info: AppInfo | null; paused: boolean; onTogglePause: () => void }) {
-  const { data, error } = usePolling<D>(() => call<D>("dashboard"), 5000);
-  const [update, setUpdate] = useState<string | null>(null);
+type Props = {
+  auth: AuthStatus; info: AppInfo | null; paused: boolean; update: string | null;
+  onTogglePause: () => void; onNavigate: (s: Screen, tab?: SettingsTab) => void;
+};
 
-  useEffect(() => {
-    call<{ available: string | null }>("update_check").then((u) => setUpdate(u.available)).catch(() => setUpdate(null));
-  }, []);
+export function Dashboard({ auth, info, paused, update, onTogglePause, onNavigate }: Props) {
+  const { data, error, reload } = usePolling<D>(() => call<D>("dashboard"), 5000);
 
   const w = data?.worker;
   const health: [string, string, "success" | "danger" | "attention" | "muted"][] = w ? [
@@ -41,16 +39,21 @@ export function Dashboard({ auth, info, paused, onTogglePause }: { auth: AuthSta
           <h1>Estado da operação</h1>
         </div>
         <div className="head-actions">
-          <button className="btn" onClick={() => void call("consig_session_open").catch((e) => alert(errorMessage(e)))}>
-            <ExternalLink size={14} /> Abrir Consig
+          <button className="btn" onClick={() => onNavigate("consig")}>
+            <ExternalLink size={14} aria-hidden="true" /> Abrir Consig
           </button>
           <button className={`btn ${paused ? "btn-primary" : ""}`} onClick={onTogglePause}>
-            {paused ? <><Play size={14} /> Retomar fila</> : <><Pause size={14} /> Pausar fila</>}
+            {paused ? <><Play size={14} aria-hidden="true" /> Retomar fila</> : <><Pause size={14} aria-hidden="true" /> Pausar fila</>}
           </button>
         </div>
       </header>
 
-      {error ? <div className="notice" data-tone="danger">{errorMessage(error)}</div> : null}
+      {error && !data ? (
+        <ErrorState title="Não foi possível carregar o painel" message={errorMessage(error)} onRetry={() => void reload()} />
+      ) : error ? (
+        <div className="notice" data-tone="danger" role="alert">{errorMessage(error)} Exibindo os últimos dados recebidos.</div>
+      ) : null}
+      {!data && !error && <Loading label="Carregando o estado da operação…" />}
 
       {w && (
         <div className={`banner ${w.current ? "banner-active" : ""}`}>
@@ -99,7 +102,10 @@ export function Dashboard({ auth, info, paused, onTogglePause }: { auth: AuthSta
           <h2 className="panel-title">Instalação</h2>
           <dl className="kv">
             <div><dt>Versão instalada</dt><dd className="mono">{info?.version ?? "—"} <span className="muted">({info?.channel})</span></dd></div>
-            <div><dt>Atualização</dt><dd>{update ? <span className="status" data-tone="attention">v{update} disponível</span> : <span className="muted">Nenhuma disponível</span>}</dd></div>
+            <div><dt>Atualização</dt><dd>{update
+              ? <button className="btn-link" onClick={() => onNavigate("settings", "Atualizações")}>
+                  <span className="status" data-tone="attention">v{update} disponível</span></button>
+              : <span className="muted">Nenhuma disponível</span>}</dd></div>
             <div><dt>Último ciclo da fila</dt><dd className="mono">{w?.last_cycle_at ? fmt(new Date(w.last_cycle_at * 1000).toISOString()) : "—"}</dd></div>
             <div><dt>Resultados pendentes de envio</dt><dd className="mono">{w?.pending_results ?? 0}</dd></div>
             <div><dt>Último erro técnico</dt><dd className="mono">{w?.last_error ?? "—"}</dd></div>
@@ -117,13 +123,13 @@ export function Dashboard({ auth, info, paused, onTogglePause }: { auth: AuthSta
               <p className="mono small">{fmtBytes(data.storage.database_bytes)} de {fmtBytes(data.storage.limit_bytes)} ({storagePct.toFixed(1)}%)</p>
               <p className="muted small">Registros com dados pessoais temporários: <span className="mono">{data.storage.pii_rows}</span></p>
             </>
-          ) : <p className="muted">—</p>}
+          ) : <p className="muted">{data ? "Indisponível no momento." : "—"}</p>}
         </section>
 
         <section className="panel panel-wide">
-          <h2 className="panel-title">Histórico operacional</h2>
-          <table className="table">
-            <thead><tr><th>Quando</th><th>Evento</th><th>Origem</th><th>Solicitação</th></tr></thead>
+          <h2 className="panel-title" id="activity-title">Histórico operacional</h2>
+          <table className="table" aria-labelledby="activity-title">
+            <thead><tr><th scope="col">Quando</th><th scope="col">Evento</th><th scope="col">Origem</th><th scope="col">Solicitação</th></tr></thead>
             <tbody>
               {(data?.recent_activity ?? []).map((a, i) => (
                 <tr key={i}>
@@ -133,6 +139,10 @@ export function Dashboard({ auth, info, paused, onTogglePause }: { auth: AuthSta
                   <td className="mono muted">{a.request_id?.slice(0, 8) ?? "—"}</td>
                 </tr>
               ))}
+              {data && data.recent_activity.length === 0 && (
+                <tr><td colSpan={4} className="muted empty">Nenhuma atividade registrada ainda.</td></tr>
+              )}
+              {!data && <tr><td colSpan={4} className="muted empty">{error ? "—" : "Carregando…"}</td></tr>}
             </tbody>
           </table>
         </section>

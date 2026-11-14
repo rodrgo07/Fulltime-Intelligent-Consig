@@ -16,7 +16,7 @@ export function Login({ status, onChange }: Props) {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    call<AppConfig>("config_get").then(setCfg);
+    call<AppConfig>("config_get").then(setCfg).catch((e) => setErr(errorMessage(e)));
   }, []);
 
   async function run(fn: () => Promise<void>) {
@@ -44,7 +44,7 @@ export function Login({ status, onChange }: Props) {
             <input id="u" className="input mono" placeholder="https://<projeto>.supabase.co" value={url} onChange={(e) => setUrl(e.target.value)} required /></div>
           <div className="field"><label htmlFor="k">Chave pública (anon)</label>
             <input id="k" className="input mono" type="password" autoComplete="off" value={anon} onChange={(e) => setAnon(e.target.value)} required /></div>
-          {err && <div className="notice" data-tone="danger" role="alert">{err}</div>}
+          {err && <div className="notice" data-tone="danger" role="alert" id="login-err">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>Salvar conexão</button>
         </form>
       </Frame>
@@ -61,15 +61,16 @@ export function Login({ status, onChange }: Props) {
             <button className="btn btn-primary" onClick={startEnroll} disabled={busy}>Cadastrar autenticador</button>
           </div>
         )}
-        {enroll && <img className="qr" src={enroll.qr_code} alt="QR code para o aplicativo autenticador" width={176} height={176} />}
+        {enroll && <img className="qr" src={enroll.qr_code} alt="QR code para cadastrar o Intelligent Consig no aplicativo autenticador" width={176} height={176} />}
         {(status.has_factor || enroll) && (
           <form className="stack" onSubmit={(e) => { e.preventDefault(); void run(async () => {
             onChange(await call<AuthStatus>("auth_mfa_verify", { code, factorId: enroll?.factor_id ?? null }));
           }); }}>
             <div className="field"><label htmlFor="c">Código de 6 dígitos</label>
               <input id="c" className="input mono code" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
-                pattern="[0-9]{6}" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus required /></div>
-            {err && <div className="notice" data-tone="danger" role="alert">{err}</div>}
+                pattern="[0-9]{6}" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} autoFocus required
+                aria-invalid={err ? true : undefined} aria-describedby={err ? "login-err" : undefined} /></div>
+            {err && <div className="notice" data-tone="danger" role="alert" id="login-err">{err}</div>}
             <button className="btn btn-primary" disabled={busy || code.length !== 6}>Verificar</button>
           </form>
         )}
@@ -89,7 +90,7 @@ export function Login({ status, onChange }: Props) {
           <input id="e" className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus /></div>
         <div className="field"><label htmlFor="p">Senha</label>
           <input id="p" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
-        {err && <div className="notice" data-tone="danger" role="alert">{err}</div>}
+        {err && <div className="notice" data-tone="danger" role="alert" id="login-err">{err}</div>}
         <button className="btn btn-primary" disabled={busy}>{busy ? "Entrando…" : "Continuar"}</button>
       </form>
     </Frame>
@@ -97,8 +98,9 @@ export function Login({ status, onChange }: Props) {
 }
 
 function Frame({ title, eyebrow, children }: { title: string; eyebrow: string; children: React.ReactNode }) {
+  useEffect(() => { document.title = `${title} · Fulltime Intelligent Consig`; }, [title]);
   return (
-    <main className="auth">
+    <main className="auth" id="conteudo">
       <section className="auth-card">
         <div className="auth-brand">
           <span className="brand-chip"><img src="/fulltime.png" alt="Fulltime" /></span>

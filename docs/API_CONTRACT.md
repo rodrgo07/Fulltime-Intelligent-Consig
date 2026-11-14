@@ -14,6 +14,11 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
   `phx_join` (é ele que aplica o RLS); a inscrição só vale após o evento `system` "Subscribed to PostgreSQL".
 - Erros de negócio: `SQLSTATE P0001` com `message` = **código estável** (`RATE_LIMITED`, `PAYLOAD_INVALID`…) e
   `details` opcional. Interfaces mapeiam o código para mensagens (`ERROR_MESSAGE` em `@fic/contracts`).
+  **Todo código novo precisa de mensagem:** `packages/contracts/src/index.test.ts` varre `supabase/migrations` e
+  `supabase/functions` e falha se algum código não estiver em `ERROR_MESSAGE`. Erros de transporte do PostgREST
+  (`PGRST301/302/303` → `UNAUTHENTICATED`, `42501` → `FORBIDDEN`) e de rede (`NETWORK`) também são mapeados.
+- Motivos gravados em `status_reason`/`error_code` (banco, motor e desktop) têm rótulo em `STATUS_REASON_LABEL`
+  (mesmo teste); texto livre de observação não é exibido ao operador.
 - Nenhum dado pessoal em URL, query string, log ou e-mail. IDs técnicos são UUID; a referência exibida
   (`public_ref`, ex. `FIC-261112-9F3A1C2B`) é aleatória e **não** dá acesso a nada.
 
