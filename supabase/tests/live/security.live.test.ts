@@ -48,7 +48,7 @@ async function login(email: string, password: string) {
 
 const ZERO = "00000000-0000-4000-8000-000000000000";
 const TABLES = ["profiles", "operators", "form_definitions", "proposal_requests", "clients_temp", "automation_jobs",
-  "proposal_results", "notification_queue", "audit_logs", "app_versions", "app_settings"];
+  "proposal_results", "audit_logs", "app_versions", "app_settings"];
 const RPCS: [string, Record<string, unknown>][] = [
   ["submit_proposal_request", { p_idempotency_key: ZERO, p_form_version: 1, p_payload: {} }],
   ["cancel_proposal_request", { p_request_id: ZERO }],
@@ -63,9 +63,8 @@ const RPCS: [string, Record<string, unknown>][] = [
   ["storage_usage", {}],
   ["admin_set_member_active", { p_profile_id: ZERO, p_active: false }],
   ["assert_admin", {}],
-  ["svc_claim_notifications", { p_limit: 1 }],
-  ["svc_finish_notification", { p_notification_id: ZERO, p_ok: true }],
-  ["svc_register_member", { p_user_id: ZERO, p_role: "admin", p_display_name: "x", p_email: "x@exemplo.test", p_invited_by: null }],
+  // Assinatura do PR-B1 (sem e-mail): a suíte live roda depois do db push da 0006.
+  ["svc_register_member", { p_user_id: ZERO, p_role: "admin", p_display_name: "x" }],
 ];
 
 describe.skipIf(!URL_)("D3 live — chamadas anônimas recusadas", () => {
@@ -83,13 +82,6 @@ describe.skipIf(!URL_)("D3 live — chamadas anônimas recusadas", () => {
   it("schema private não é exposto pela API", async () => {
     const r = await call("/rest/v1/rpc/run_retention", { body: {}, headers: { "Content-Profile": "private" } });
     expect(r.ok).toBe(false);
-  });
-
-  it("Edge Functions recusam chamada sem JWT de admin / sem segredo do cron", async () => {
-    const invite = await call("/functions/v1/admin-invite", { body: { email: "x@exemplo.test", display_name: "x", role: "operator" } });
-    expect(invite.ok).toBe(false);
-    const dispatch = await call("/functions/v1/dispatch-notifications", { body: {} });
-    expect(dispatch.ok).toBe(false);
   });
 });
 
@@ -114,8 +106,8 @@ describe.skipIf(!URL_ || !HAS_OPS)("D3 live — isolamento entre operadores (RLS
     }
   });
 
-  it("operador não lê dados pessoais, jobs, fila de e-mail, auditoria nem configurações", async () => {
-    for (const t of ["clients_temp", "automation_jobs", "notification_queue", "audit_logs", "app_settings", "app_versions"]) {
+  it("operador não lê dados pessoais, jobs, auditoria nem configurações", async () => {
+    for (const t of ["clients_temp", "automation_jobs", "audit_logs", "app_settings", "app_versions"]) {
       const r = await call(`/rest/v1/${t}?select=*&limit=1`, { token: b.token });
       expect(r.ok ? (r.body as unknown[]).length : 0, `${t}: ${r.status}`).toBe(0);
     }
@@ -132,7 +124,8 @@ describe.skipIf(!URL_ || !HAS_OPS)("D3 live — isolamento entre operadores (RLS
     expect(code(await rpc("claim_next_job", { p_worker_id: "qa-live" }, b.token))).toBe("FORBIDDEN");
     expect(code(await rpc("storage_usage", {}, b.token))).toBe("FORBIDDEN");
     expect(code(await rpc("assert_admin", {}, b.token))).toBe("FORBIDDEN");
-    expect((await rpc("svc_claim_notifications", { p_limit: 1 }, b.token)).ok).toBe(false);
+    const reg = await rpc("svc_register_member", { p_user_id: b.id, p_role: "admin", p_display_name: "x" }, b.token);
+    expect([401, 403], `svc_register_member respondeu ${reg.status}`).toContain(reg.status);
   });
 
   it("cancelar solicitação inexistente/alheia responde NOT_FOUND", async () => {

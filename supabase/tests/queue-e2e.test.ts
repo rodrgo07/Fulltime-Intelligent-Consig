@@ -75,7 +75,7 @@ afterEach(async () => {
 }, 30_000);
 
 describe.skipIf(!ENGINE_READY)("D2 — fila ponta a ponta (fluxo falso)", { timeout: 90_000 }, () => {
-  it("envio → reserva → execução → resultado → e-mail → exclusão dos dados pessoais", async () => {
+  it("envio → reserva → execução → resultado no portal → exclusão dos dados pessoais", async () => {
     const r = await submit();
     const { engine, desktop } = boot("ok");
     expect(await desktop.cycle()).toBeNull();
@@ -100,17 +100,14 @@ describe.skipIf(!ENGINE_READY)("D2 — fila ponta a ponta (fluxo falso)", { time
       "request.received", "job.claimed", "job.running", "job.side_effect_started", "pii.purged", "request.completed",
     ]);
 
-    // E-mail: a Edge Function (service_role) reserva e conclui a notificação do proprietário.
-    const batch = await as(db, { role: "service_role" }, (tx) =>
-      rpc<{ notification_id: string; adhesion_number: string; operation_ref: string }[]>(tx, "public.svc_claim_notifications(10)"));
-    expect(batch).toHaveLength(1);
-    expect(batch[0]).toMatchObject({ adhesion_number: FAKE_ADHESION, operation_ref: r.public_ref });
-    await as(db, { role: "service_role" }, (tx) =>
-      rpc(tx, "public.svc_finish_notification($1, true, 'msg-falso-1')", [batch[0].notification_id]));
-    expect((await one<{ status: string }>("select status from public.notification_queue")).status).toBe("sent");
+    // Aviso ao operador: só no portal (sem e-mail). É a mesma consulta da RequestsPage, filtrada pelo RLS.
+    const seen = (await as(db, { sub: op }, (tx) => tx.query<{ public_ref: string; status: string; adhesion_number: string }>(
+      `select r.public_ref, r.status, pr.adhesion_number
+         from public.proposal_requests r left join public.proposal_results pr on pr.request_id = r.id`))).rows;
+    expect(seen).toEqual([{ public_ref: r.public_ref, status: "completed", adhesion_number: FAKE_ADHESION }]);
 
-    // LGPD: o dado pessoal nunca volta pelo canal do motor, nem aparece em log, arquivo local, auditoria ou e-mail.
-    const leaks = [engine.allOutput(), JSON.stringify(desktop.loadPending()), JSON.stringify(batch),
+    // LGPD: o dado pessoal nunca volta pelo canal do motor, nem aparece em log, arquivo local, auditoria ou portal.
+    const leaks = [engine.allOutput(), JSON.stringify(desktop.loadPending()), JSON.stringify(seen),
       JSON.stringify((await db.query("select * from public.audit_logs")).rows)].join("\n");
     expect(leaks).not.toContain(FAKE_CPF[0]);
     expect(leaks).not.toContain(CLIENT_NAME);
@@ -250,7 +247,8 @@ describe.skipIf(!ENGINE_READY)("D2 — fila ponta a ponta (fluxo falso)", { time
     const job = await one<{ id: string }>("select id from public.automation_jobs");
     second.desktop.savePending([{ job_id: job.id, adhesion_number: FAKE_ADHESION, result_status: "GERADA", external_operation_id: null }]);
     expect(await second.desktop.flushPending()).toBe(0);
-    expect(await count("public.notification_queue")).toBe(1);
+    expect(await count("public.proposal_results")).toBe(1);
+    expect(await count("public.audit_logs where action = 'request.completed'")).toBe(1);
   });
 
   it("queda de rede maior que a reserva com resultado pendente: fica preso até a decisão humana (comportamento atual)", async () => {

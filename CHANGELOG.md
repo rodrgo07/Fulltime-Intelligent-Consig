@@ -32,6 +32,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - Testes do desktop (Vitest) entram no CI e no pipeline de release.
 
 ### Alterado
+- QA: suítes D2/D3 sem o e-mail de resultado (decisão de simplificar). O D2 termina em `completed` + resultado visível
+  ao operador pelo portal (RLS) + exclusão dos dados pessoais; D3 local e live sem `notification_queue`,
+  `svc_claim_notifications`/`svc_finish_notification` e `dispatch-notifications`.
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment
   `production` restrito a tags `v*` com aprovação. O deploy manual do Supabase deve ser disparado a partir de uma tag.
 - Tokens de cor ajustados para contraste AA nos dois temas (texto fraco, estados, bordas de campo) — teste de
