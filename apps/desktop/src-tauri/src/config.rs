@@ -150,11 +150,20 @@ impl ConfigStore {
         Self { path: dir.join("config.json") }
     }
 
+    /// Lê a configuração do disco. Uma chave Supabase que não seja pública (ex.: `sb_secret_`/`service_role`
+    /// colocada à mão no `config.json`) é descartada: o app fica "não configurado" e pede a chave de novo.
     pub fn load(&self) -> AppConfig {
-        std::fs::read(&self.path)
+        let mut cfg: AppConfig = std::fs::read(&self.path)
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        if !cfg.supabase_anon_key.is_empty() {
+            if let Err(e) = check_public_key(&cfg.supabase_anon_key) {
+                tracing::warn!(code = %e.code(), "chave Supabase do config.json recusada; configure a chave pública de novo");
+                cfg.supabase_anon_key.clear();
+            }
+        }
+        cfg
     }
 
     /// Escrita atômica (arquivo temporário + rename).
@@ -226,6 +235,25 @@ mod tests {
         assert_eq!(mask("abcdefghij"), "••••••••ghij");
         let c = AppConfig { supabase_anon_key: "segredo-1234".into(), ..Default::default() };
         assert_eq!(c.masked()["supabase_anon_key"], "••••••••1234");
+    }
+
+    #[test]
+    fn load_discards_forbidden_key_written_by_hand() {
+        let dir = std::env::temp_dir().join(format!("fic-cfg-load-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = ConfigStore::new(&dir);
+        for k in ["sb_secret_FAKE0000000000000000_abcd".to_string(), jwt("service_role"), "lixo".into()] {
+            let raw = serde_json::json!({ "supabase_url": "https://abc.supabase.co", "supabase_anon_key": k, "poll_interval_s": 45 });
+            std::fs::write(dir.join("config.json"), raw.to_string()).unwrap();
+            let c = store.load();
+            assert!(c.supabase_anon_key.is_empty());
+            assert!(!c.supabase_configured());
+            assert_eq!(c.poll_interval_s, 45); // demais campos preservados
+        }
+        let raw = serde_json::json!({ "supabase_url": "https://abc.supabase.co", "supabase_anon_key": "sb_publishable_FAKE0000_abcd" });
+        std::fs::write(dir.join("config.json"), raw.to_string()).unwrap();
+        assert!(store.load().supabase_configured());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
