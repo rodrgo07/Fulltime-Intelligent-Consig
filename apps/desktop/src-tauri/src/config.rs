@@ -241,7 +241,8 @@ mod tests {
     #[test]
     #[ignore = "BUG-QA-003: ConfigStore::load não valida a chave (service_role do disco é aceita)"]
     fn load_never_returns_a_service_role_key() {
-        let dir = std::env::temp_dir().join(format!("fic-cfg-load-{}", std::process::id()));
+        // Diretório exclusivo deste teste: os testes do cargo rodam em paralelo.
+        let dir = std::env::temp_dir().join(format!("fic-cfg-load-sr-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("config.json"),
             r#"{"supabase_url":"https://abc.supabase.co","supabase_anon_key":"sb_secret_abc"}"#).unwrap();
