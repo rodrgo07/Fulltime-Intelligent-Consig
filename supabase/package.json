@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "smoke:local": "node tests/smoke/new-keys.mjs"
+    "smoke:local": "node tests/smoke/new-keys.mjs",
+    "test:live": "vitest run tests/live"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16",
