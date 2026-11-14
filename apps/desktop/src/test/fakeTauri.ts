@@ -24,7 +24,7 @@ export function defaultHandlers(): Record<string, Handler> {
     intro_mark_seen: () => null,
     dashboard: () => ({
       counts: { received: 0, queued: 0, preparing: 0, running: 0, awaiting_confirmation: 0, completed: 0, failed: 0, cancelled: 0 },
-      storage: null, worker: DEFAULT_WORKER, realtime_connected: true, recent_activity: [],
+      storage: null, worker: DEFAULT_WORKER, recent_activity: [],
     }),
     worker_status: () => DEFAULT_WORKER,
     diagnostics: () => ({ chrome_installed: true }),

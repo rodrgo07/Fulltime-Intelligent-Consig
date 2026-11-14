@@ -10,7 +10,7 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 - Transporte externo: HTTPS (PostgREST/Auth/Edge Functions do Supabase). Interno: JSON-RPC 2.0 por stdio.
 - Autenticação: JWT do Supabase Auth no header `Authorization: Bearer`, mais `apikey` (chave pública:
   `sb_publishable_…` ou a `anon` legada). Chaves de API (`sb_…`) nunca vão no `Authorization`; o supabase-js ≥ 2.119
-  já faz isso sozinho. Realtime: chave pública no parâmetro `apikey` da URL e JWT do usuário no `access_token` do
+  já faz isso sozinho. Realtime (só o portal): chave pública no parâmetro `apikey` da URL e JWT do usuário no `access_token` do
   `phx_join` (é ele que aplica o RLS); a inscrição só vale após o evento `system` "Subscribed to PostgreSQL".
 - Erros de negócio: `SQLSTATE P0001` com `message` = **código estável** (`RATE_LIMITED`, `PAYLOAD_INVALID`…) e
   `details` opcional. Interfaces mapeiam o código para mensagens (`ERROR_MESSAGE` em `@fic/contracts`).
@@ -73,8 +73,8 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 
 Leitura (RLS staff): `proposal_requests`, `automation_jobs`, `proposal_results`, `audit_logs`, `notification_queue`.
 
-**Recepção confiável**: Realtime acorda o worker; independentemente dele, o worker consulta a cada
-`poll_interval_s` (padrão 30 s) e logo após cada reconexão. Reservas expiradas são recuperadas pelo
+**Recepção**: o desktop não usa Realtime; o worker consulta a cada `poll_interval_s` (padrão 30 s) e logo após
+cada ação local (pausa/retomada, decisão humana, motor pronto). Reservas expiradas são recuperadas pelo
 `pg_cron` (`recover_stale_jobs`, a cada minuto).
 
 ## 5. Máquina de estados da solicitação

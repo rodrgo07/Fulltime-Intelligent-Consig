@@ -7,7 +7,6 @@ use crate::error::{AppError, AppResult};
 use crate::state::{AppState, WorkerStatus};
 use crate::worker;
 use serde_json::{json, Value};
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
@@ -167,7 +166,6 @@ pub async fn worker_set_paused(state: S<'_>, paused: bool) -> AppResult<()> {
 #[tauri::command]
 pub async fn dashboard(state: S<'_>) -> AppResult<Value> {
     let worker = state.status.read().await.clone();
-    let realtime = state.realtime_connected.load(Ordering::Relaxed);
     let (sb, tok) = state.client().await?;
     let rows = sb.select(&tok, "proposal_requests?select=status&limit=10000").await?;
     let mut counts = serde_json::Map::new();
@@ -182,7 +180,7 @@ pub async fn dashboard(state: S<'_>) -> AppResult<Value> {
     }
     let storage = sb.rpc::<Value>(&tok, "storage_usage", json!({})).await.ok();
     let recent = sb.select(&tok, "audit_logs?select=occurred_at,action,actor_role,request_id&order=occurred_at.desc&limit=25").await.unwrap_or(json!([]));
-    Ok(json!({ "counts": counts, "storage": storage, "worker": worker, "realtime_connected": realtime, "recent_activity": recent }))
+    Ok(json!({ "counts": counts, "storage": storage, "worker": worker, "recent_activity": recent }))
 }
 
 const REQUEST_SELECT: &str = "id,public_ref,status,status_reason,received_at,updated_at,completed_at,pii_expires_at,pii_purged_at,form_version,\
@@ -332,7 +330,6 @@ pub async fn diagnostics(app: AppHandle, state: S<'_>) -> AppResult<Value> {
         "chrome_installed": chrome,
         "supabase_configured": sb.is_some(),
         "supabase_reachable": reachable,
-        "realtime_connected": state.realtime_connected.load(Ordering::Relaxed),
         "engine_pid": engine.as_ref().and_then(|e| e.pid),
         "engine_path": crate::engine::engine_path(),
         "data_dir": state.data_dir,

@@ -22,7 +22,6 @@ export function Dashboard({ auth, info, paused, update, onTogglePause, onNavigat
   const w = data?.worker;
   const health: [string, string, "success" | "danger" | "attention" | "muted"][] = w ? [
     ["Supabase", w.supabase_reachable ? "Conectado" : "Sem resposta", w.supabase_reachable ? "success" : "danger"],
-    ["Realtime", data!.realtime_connected ? "Inscrito" : "Reconectando (consulta periódica ativa)", data!.realtime_connected ? "success" : "attention"],
     ["Motor RPA", ENGINE_LABEL[w.engine_state] ?? w.engine_state, w.engine_state === "ready" ? "success" : "danger"],
     ["Fluxo do Consig", w.workflow_ready ? "Implementado" : "Não implementado", w.workflow_ready ? "success" : "attention"],
     ["Sessão do Consig", SESSION_LABEL[w.consig_session] ?? w.consig_session, w.consig_session === "authenticated" ? "success" : "muted"],

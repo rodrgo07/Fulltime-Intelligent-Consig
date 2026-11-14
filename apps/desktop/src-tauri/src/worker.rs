@@ -9,13 +9,11 @@
 
 use crate::engine::{engine_path, Engine, EngineMsg, JobEvent};
 use crate::error::{AppError, AppResult};
-use crate::realtime;
 use crate::state::{AppState, CurrentJob};
 use crate::supabase::now_epoch;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -42,8 +40,7 @@ pub fn save_pending(dir: &Path, items: &[PendingResult]) -> AppResult<()> {
 
 pub fn spawn_all(state: Arc<AppState>) {
     tokio::spawn(engine_supervisor(state.clone()));
-    tokio::spawn(queue_loop(state.clone()));
-    tokio::spawn(realtime_loop(state));
+    tokio::spawn(queue_loop(state));
 }
 
 async fn set_error(state: &AppState, e: &AppError) {
@@ -384,30 +381,6 @@ fn worker_id() -> String {
     host.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(60).collect()
 }
 
-// ------------------------------------------------------------------ realtime
-async fn realtime_loop(state: Arc<AppState>) {
-    let mut backoff = 2u64;
-    loop {
-        let ready = async {
-            let (sb, tok) = state.client().await.ok()?;
-            Some((realtime::socket_url(sb.base_url(), sb.anon_key()), tok))
-        }
-        .await;
-        match ready {
-            Some((url, tok)) => {
-                match realtime::run_once(&url, &tok, &state.wake, &state.realtime_connected).await {
-                    Ok(()) => backoff = 2,
-                    Err(e) => tracing::warn!(error = %e.chars().take(120).collect::<String>(), "realtime desconectado"),
-                }
-                state.realtime_connected.store(false, Ordering::Relaxed);
-                state.wake.notify_one(); // consulta logo após reconectar: nada se perde
-            }
-            None => backoff = 10,
-        }
-        tokio::time::sleep(Duration::from_secs(backoff)).await;
-        backoff = (backoff * 2).min(60);
-    }
-}
 
 #[cfg(test)]
 mod tests {

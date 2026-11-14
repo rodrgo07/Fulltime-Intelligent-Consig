@@ -89,7 +89,7 @@ function Engine({ cfg, save }: SP) {
           <span className="hint">Aberto no Google Chrome controlado para o login humano. Pendente de mapeamento.</span></div>
         <div className="field"><label htmlFor="pi">Intervalo de consulta da fila (s)</label>
           <input id="pi" className="input mono" type="number" min={10} max={600} value={poll} onChange={(e) => setPoll(Number(e.target.value))} />
-          <span className="hint">Complementa o Realtime: garante recuperação após quedas.</span></div>
+          <span className="hint">Intervalo da consulta à fila (único meio de receber solicitações novas).</span></div>
         <div><button className="btn btn-primary">Salvar</button></div>
       </form>
       <div className="btn-row">
@@ -270,7 +270,7 @@ function Install() {
         ["Versão", d.app_version], ["Canal", d.channel], ["Sistema", d.os], ["RAM total (MB)", d.total_ram_mb],
         ["RAM disponível (MB)", d.available_ram_mb], ["CPUs", d.cpu_count], ["Google Chrome instalado", yes(d.chrome_installed)],
         ["Supabase configurado", yes(d.supabase_configured)], ["Supabase acessível", yes(d.supabase_reachable)],
-        ["Realtime conectado", yes(d.realtime_connected)], ["PID do motor", d.engine_pid ?? "—"], ["Executável do motor", d.engine_path],
+        ["PID do motor", d.engine_pid ?? "—"], ["Executável do motor", d.engine_path],
         ["Pasta de dados", d.data_dir], ["Pasta de logs", d.log_dir], ["Resultados pendentes", d.pending_results],
       ].map(([k, v]) => <div key={String(k)}><dt>{String(k)}</dt><dd className="mono">{String(v)}</dd></div>)}
     </dl>

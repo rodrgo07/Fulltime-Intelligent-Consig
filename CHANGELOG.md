@@ -4,6 +4,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 
 ## [Não lançado]
 
+### Removido
+- Realtime no desktop (decisão do usuário): saem `realtime.rs`, o laço de WebSocket do worker, `realtime_connected`
+  (painel e diagnóstico) e as dependências `tokio-tungstenite`/`futures-util`. O worker usa só a consulta periódica.
+  O Realtime do portal continua.
+
 ### Adicionado
 - Templates de e-mail do Auth em PT-BR (convite e recuperação) em `supabase/templates/`; aplicados após o SMTP
   próprio (Resend), exigido pelo Supabase no plano free.

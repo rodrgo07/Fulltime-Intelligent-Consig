@@ -5,7 +5,6 @@ use crate::error::{AppError, AppResult};
 use crate::supabase::Supabase;
 use serde::Serialize;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::{Notify, RwLock};
 
@@ -48,7 +47,6 @@ pub struct AppState {
     pub status: RwLock<WorkerStatus>,
     pub wake: Notify,
     pub engine_restart: Notify,
-    pub realtime_connected: Arc<AtomicBool>,
 }
 
 impl AppState {

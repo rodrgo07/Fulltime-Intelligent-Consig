@@ -3,14 +3,12 @@ mod commands;
 mod config;
 mod engine;
 mod error;
-mod realtime;
 mod secrets;
 mod state;
 mod supabase;
 mod worker;
 
 use state::{AppState, WorkerStatus};
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::menu::{Menu, MenuItem};
@@ -44,7 +42,7 @@ fn init_logging(dir: &std::path::Path, level: &str) -> tracing_appender::non_blo
         .json()
         .with_current_span(false)
         .with_writer(writer)
-        .with_env_filter(EnvFilter::new(format!("{filter},hyper=warn,reqwest=warn,tungstenite=warn")))
+        .with_env_filter(EnvFilter::new(format!("{filter},hyper=warn,reqwest=warn")))
         .init();
     guard
 }
@@ -93,7 +91,6 @@ pub fn run() {
                 status: RwLock::new(WorkerStatus { engine_state: "starting".into(), ..Default::default() }),
                 wake: Notify::new(),
                 engine_restart: Notify::new(),
-                realtime_connected: Arc::new(AtomicBool::new(false)),
             });
             app.manage(state.clone());
 
