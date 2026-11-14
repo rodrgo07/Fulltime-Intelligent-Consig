@@ -46,7 +46,9 @@ describe("D3 — chamadas anônimas recusadas", () => {
   it("anon não lê nenhuma tabela do schema public", async () => {
     const tables = (await db.query<{ t: string }>(
       "select tablename t from pg_tables where schemaname = 'public' order by 1")).rows.map((r) => r.t);
-    expect(tables.length).toBeGreaterThanOrEqual(11);
+    // Núcleo que deve existir em qualquer versão do schema (a lista completa muda com as migrations).
+    expect(tables).toEqual(expect.arrayContaining(["profiles", "operators", "form_definitions", "proposal_requests",
+      "clients_temp", "automation_jobs", "proposal_results", "audit_logs", "app_versions", "app_settings"]));
     for (const t of tables) {
       expect(await errorCode(as(db, { role: "anon" }, (tx) => tx.query(`select 1 from public.${t} limit 1`))), t)
         .toMatch(/permission denied/);
@@ -64,11 +66,34 @@ describe("D3 — chamadas anônimas recusadas", () => {
       "public.storage_usage()",
       "public.assert_admin()",
       "public.admin_set_member_active(gen_random_uuid(), false)",
-      "public.svc_register_member(gen_random_uuid(), 'admin', 'x', 'x@exemplo.test', null)",
     ];
     for (const c of calls) {
       expect(await errorCode(as(db, { role: "anon" }, (tx) => rpc(tx, c))), c).toMatch(/permission denied/);
     }
+  });
+
+  it("funções de serviço (svc_*) não são executáveis por anon nem por usuários da API", async () => {
+    // Pelo catálogo: vale para qualquer assinatura (svc_register_member muda de assinatura no PR-B1).
+    const svc = (await db.query<{ sig: string; anon: boolean; auth: boolean; service: boolean }>(`
+      select p.oid::regprocedure::text sig,
+             has_function_privilege('anon', p.oid, 'execute') anon,
+             has_function_privilege('authenticated', p.oid, 'execute') auth,
+             has_function_privilege('service_role', p.oid, 'execute') service
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname like 'svc\_%'`)).rows;
+    expect(svc.map((f) => f.sig)).toEqual(expect.arrayContaining([expect.stringMatching(/^svc_register_member\(/)]));
+    for (const f of svc) expect(f, f.sig).toMatchObject({ anon: false, auth: false, service: true });
+  });
+
+  it("operador e admin não registram membros (svc_register_member é só do SQL Editor)", async () => {
+    const sig = (await one<{ sig: string }>(
+      "select p.oid::regprocedure::text sig from pg_proc p where p.proname = 'svc_register_member'")).sig;
+    const args = sig.split(",").length >= 5 ? "$1, 'admin', 'x', 'x@exemplo.test', null" : "$1, 'admin', 'x'";
+    for (const claims of [{ sub: op }, { sub: admin, aal: "aal2" as const }]) {
+      expect(await errorCode(as(db, claims, (tx) => rpc(tx, `public.svc_register_member(${args})`, [op]))))
+        .toMatch(/permission denied/);
+    }
+    expect((await one<{ role: string }>("select role from public.profiles where id = $1", [op])).role).toBe("operator");
   });
 
   it("anon não alcança o schema private", async () => {

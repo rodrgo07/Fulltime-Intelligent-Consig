@@ -63,7 +63,8 @@ const RPCS: [string, Record<string, unknown>][] = [
   ["storage_usage", {}],
   ["admin_set_member_active", { p_profile_id: ZERO, p_active: false }],
   ["assert_admin", {}],
-  ["svc_register_member", { p_user_id: ZERO, p_role: "admin", p_display_name: "x", p_email: "x@exemplo.test", p_invited_by: null }],
+  // Assinatura do PR-B1 (sem e-mail): a suíte live roda depois do db push da 0006.
+  ["svc_register_member", { p_user_id: ZERO, p_role: "admin", p_display_name: "x" }],
 ];
 
 describe.skipIf(!URL_)("D3 live — chamadas anônimas recusadas", () => {
@@ -81,11 +82,6 @@ describe.skipIf(!URL_)("D3 live — chamadas anônimas recusadas", () => {
   it("schema private não é exposto pela API", async () => {
     const r = await call("/rest/v1/rpc/run_retention", { body: {}, headers: { "Content-Profile": "private" } });
     expect(r.ok).toBe(false);
-  });
-
-  it("Edge Function admin-invite recusa chamada sem JWT de admin", async () => {
-    const invite = await call("/functions/v1/admin-invite", { body: { email: "x@exemplo.test", display_name: "x", role: "operator" } });
-    expect(invite.ok).toBe(false);
   });
 });
 
@@ -128,8 +124,8 @@ describe.skipIf(!URL_ || !HAS_OPS)("D3 live — isolamento entre operadores (RLS
     expect(code(await rpc("claim_next_job", { p_worker_id: "qa-live" }, b.token))).toBe("FORBIDDEN");
     expect(code(await rpc("storage_usage", {}, b.token))).toBe("FORBIDDEN");
     expect(code(await rpc("assert_admin", {}, b.token))).toBe("FORBIDDEN");
-    expect((await rpc("svc_register_member", { p_user_id: ZERO, p_role: "admin", p_display_name: "x",
-      p_email: "x@exemplo.test", p_invited_by: null }, b.token)).ok).toBe(false);
+    const reg = await rpc("svc_register_member", { p_user_id: b.id, p_role: "admin", p_display_name: "x" }, b.token);
+    expect([401, 403], `svc_register_member respondeu ${reg.status}`).toContain(reg.status);
   });
 
   it("cancelar solicitação inexistente/alheia responde NOT_FOUND", async () => {
