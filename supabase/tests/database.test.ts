@@ -139,7 +139,8 @@ describe("isolamento e privilégios", () => {
 
   it("operador não executa funções do backoffice nem de serviço", async () => {
     expect(await errorCode(as(db, { sub: op }, (tx) => rpc(tx, "public.claim_next_job('x')")))).toBe("FORBIDDEN");
-    expect(await errorCode(as(db, { sub: op }, (tx) => rpc(tx, "public.svc_claim_notifications(10)"))))
+    expect(await errorCode(as(db, { sub: op }, (tx) =>
+      rpc(tx, "public.svc_register_member(gen_random_uuid(), 'admin', 'x', 'x@exemplo.test', null)"))))
       .toMatch(/permission denied/);
   });
 
@@ -194,7 +195,7 @@ describe("isolamento e privilégios", () => {
 });
 
 describe("fila e execução centralizada", () => {
-  it("fluxo completo: resultado + notificação gravados e dados pessoais apagados atomicamente", async () => {
+  it("fluxo completo: resultado gravado e dados pessoais apagados atomicamente", async () => {
     const r = await submit(op);
     const job = await claimRunning();
     expect(job.request_id).toBe(r.request_id);
@@ -211,12 +212,13 @@ describe("fila e execução centralizada", () => {
     expect((await one<{ n: number }>("select count(*)::int n from public.clients_temp")).n).toBe(0);
     expect((await one<{ adhesion_number: string }>("select * from public.proposal_results")).adhesion_number)
       .toBe("ADE-TESTE-001");
-    expect((await one<{ recipient_operator_id: string }>("select * from public.notification_queue")).recipient_operator_id)
-      .toBe(op);
+    // O operador vê o resultado pelo portal (RLS); não há mais fila de e-mail.
+    const seen = await as(db, { sub: op }, (tx) => tx.query<{ adhesion_number: string }>("select * from public.proposal_results"));
+    expect(seen.rows.map((x) => x.adhesion_number)).toEqual(["ADE-TESTE-001"]);
 
     const again = await asBo((tx) => rpc<{ duplicate: boolean }>(tx, "public.complete_job($1, 'ADE-TESTE-001')", [job.job_id]));
     expect(again.duplicate).toBe(true);
-    expect((await one<{ n: number }>("select count(*)::int n from public.notification_queue")).n).toBe(1);
+    expect((await one<{ n: number }>("select count(*)::int n from public.proposal_results")).n).toBe(1);
   });
 
   it("número de adesão vazio não conclui nem apaga dados", async () => {
@@ -336,51 +338,23 @@ describe("retenção", () => {
   });
 });
 
-describe("fila de notificações", () => {
-  async function completed() {
+describe("sem e-mail de resultado (0006)", () => {
+  it("fila, funções e configuração do envio não existem mais", async () => {
+    const left = await one<{ q: string | null; t: string | null; fns: number; s: number }>(`
+      select to_regclass('public.notification_queue')::text q, to_regtype('public.notification_status')::text t,
+             (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+               where n.nspname in ('public', 'private')
+                 and p.proname in ('svc_claim_notifications', 'svc_finish_notification', 'invoke_notification_dispatch')) fns,
+             (select count(*)::int from public.app_settings where key = 'notification_max_attempts') s`);
+    expect(left).toEqual({ q: null, t: null, fns: 0, s: 0 });
+  });
+
+  it("recuperação de reservas segue funcionando sem a fila", async () => {
     await submit(op);
     const job = await claimRunning();
-    await asBo((tx) => rpc(tx, "public.complete_job($1, 'ADE-1', null, 'GERADA')", [job.job_id]));
-  }
-
-  it("entrega dados mínimos ao e-mail do proprietário, sem dados pessoais do cliente", async () => {
-    await completed();
-    const batch = await as(db, { role: "service_role" }, (tx) => rpc<Record<string, string>[]>(tx, "public.svc_claim_notifications(10)"));
-    expect(batch).toHaveLength(1);
-    expect(batch[0].recipient_email).toMatch(/^operator\d+@exemplo\.test$/);
-    expect(batch[0].adhesion_number).toBe("ADE-1");
-    expect(JSON.stringify(batch)).not.toContain(FAKE_CPF[0]);
-    expect(JSON.stringify(batch)).not.toContain("Cliente Fictício");
-    // Já reservada: não sai de novo (sem duplicidade).
-    expect(await as(db, { role: "service_role" }, (tx) => rpc(tx, "public.svc_claim_notifications(10)"))).toEqual([]);
-  });
-
-  it("falha de envio agenda nova tentativa; sucesso marca enviado", async () => {
-    await completed();
-    const [n] = await as(db, { role: "service_role" }, (tx) => rpc<{ notification_id: string }[]>(tx, "public.svc_claim_notifications(10)"));
-    await as(db, { role: "service_role" }, (tx) =>
-      rpc(tx, "public.svc_finish_notification($1, false, null, 'HTTP 503', true)", [n.notification_id]));
-    let row = await one<{ status: string; next_attempt_at: Date }>("select * from public.notification_queue");
-    expect(row.status).toBe("pending");
-    expect(row.next_attempt_at.getTime()).toBeGreaterThan(Date.now());
-    // O resultado continua disponível mesmo com o e-mail falhando.
-    expect((await one<{ n: number }>("select count(*)::int n from public.proposal_results")).n).toBe(1);
-
-    await db.query("update public.notification_queue set next_attempt_at = now()");
-    const [n2] = await as(db, { role: "service_role" }, (tx) => rpc<{ notification_id: string; attempt: number }[]>(tx, "public.svc_claim_notifications(10)"));
-    expect(n2.attempt).toBe(2);
-    await as(db, { role: "service_role" }, (tx) =>
-      rpc(tx, "public.svc_finish_notification($1, true, 'msg_123')", [n2.notification_id]));
-    row = await one("select * from public.notification_queue");
-    expect(row.status).toBe("sent");
-  });
-
-  it("notificação travada em envio volta para pendente", async () => {
-    await completed();
-    await as(db, { role: "service_role" }, (tx) => rpc(tx, "public.svc_claim_notifications(10)"));
-    await db.query("update public.notification_queue set locked_until = now() - interval '1 second'");
-    await db.query("select private.recover_stale_jobs()");
-    expect((await one<{ status: string }>("select status from public.notification_queue")).status).toBe("pending");
+    await db.query("update public.automation_jobs set lease_expires_at = now() - interval '1 second' where id = $1", [job.job_id]);
+    expect((await one<{ n: number }>("select private.recover_stale_jobs() n")).n).toBe(1);
+    expect((await one<{ status: string }>("select status from public.proposal_requests")).status).toBe("queued");
   });
 });
 

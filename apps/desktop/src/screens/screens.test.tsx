@@ -74,7 +74,7 @@ describe("Automation", () => {
   it("linha acessível por teclado: botão abre o painel, Esc fecha e devolve o foco", async () => {
     use({
       requests_list: () => [req],
-      request_detail: () => ({ request: req, audit: [], notifications: [] }),
+      request_detail: () => ({ request: req, audit: [] }),
     });
     render(<Automation />);
     const rowBtn = await screen.findByRole("button", { name: "FIC-000000-TESTE001" });

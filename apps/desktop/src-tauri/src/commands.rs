@@ -210,8 +210,7 @@ pub async fn request_detail(state: S<'_>, id: String) -> AppResult<Value> {
     let (sb, tok) = state.client().await?;
     let req = sb.select(&tok, &format!("proposal_requests?select={REQUEST_SELECT}&id=eq.{id}")).await?;
     let audit = sb.select(&tok, &format!("audit_logs?select=occurred_at,action,actor_role,details&request_id=eq.{id}&order=occurred_at.asc")).await?;
-    let notif = sb.select(&tok, &format!("notification_queue?select=status,attempts,last_error,sent_at,next_attempt_at&request_id=eq.{id}")).await?;
-    Ok(json!({ "request": req.get(0), "audit": audit, "notifications": notif }))
+    Ok(json!({ "request": req.get(0), "audit": audit }))
 }
 
 #[tauri::command]

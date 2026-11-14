@@ -122,7 +122,6 @@ export const ERROR_MESSAGE: Record<string, string> = {
   REGISTER_FAILED: "O convite foi enviado, mas o cadastro do membro não foi concluído. Avise o responsável técnico.",
   // Infraestrutura
   METHOD_NOT_ALLOWED: "Operação não suportada.",
-  DISPATCH_FAILED: "Falha no envio de e-mails. O envio será tentado novamente.",
   NETWORK: "Sem conexão com o servidor. Tente novamente.",
   UNKNOWN: "Não foi possível concluir a operação.",
 };

@@ -1,12 +1,11 @@
 // Smoke test das chaves novas (sb_publishable_ / sb_secret_) num Supabase LOCAL completo.
 // Cobre o que o PGlite não alcança: gateway, PostgREST, Auth (MFA), Realtime e Edge Functions reais.
 //
-//   supabase start && supabase functions serve --env-file <arquivo com PORTAL_URL, CRON_SECRET, RESEND_API_KEY, MAIL_FROM>
-//   SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... CRON_SECRET=... \
+//   supabase start && supabase functions serve --env-file <arquivo com PORTAL_URL>
+//   SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... \
 //     PORTAL_URL=http://127.0.0.1:5174 pnpm --filter @fic/supabase smoke:local
 //
 // Só roda contra localhost: cria usuários e um formulário fictícios. Nenhum dado real.
-// Não envia e-mail: o dispatch é chamado com a fila vazia.
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 
@@ -18,7 +17,6 @@ const env = (k) => {
 const URL_ = env("SUPABASE_URL").replace(/\/$/, "");
 const PUB = env("SUPABASE_PUBLISHABLE_KEY");
 const SEC = env("SUPABASE_SECRET_KEY");
-const CRON = env("CRON_SECRET");
 const PORTAL = env("PORTAL_URL");
 if (!["127.0.0.1", "localhost"].includes(new URL(URL_).hostname)) throw new Error("somente Supabase local");
 if (!PUB.startsWith("sb_publishable_") || !SEC.startsWith("sb_secret_")) throw new Error("use as chaves novas");
@@ -156,16 +154,6 @@ const inv = await fn("admin-invite", { token: adm.token, body: inviteBody });
 const invBody = await inv.json().catch(() => ({}));
 check("convite por admin aal2 → 201 (Auth admin + svc_* com a chave de servidor)", inv.status === 201 && !!invBody.profile_id, `${inv.status} ${invBody.code ?? ""}`);
 
-// ------------------------------------------------------------ dispatch-notifications (x-cron-secret)
-check("dispatch sem segredo → 401", (await fn("dispatch-notifications")).status === 401);
-const pending = await admin.from("notification_queue").select("id", { count: "exact", head: true }).eq("status", "pending");
-if ((pending.count ?? 0) === 0) {
-  const d = await fn("dispatch-notifications", { headers: { "x-cron-secret": CRON } });
-  const db = await d.json().catch(() => ({}));
-  check("dispatch com segredo → 200 (svc_claim_notifications com a chave de servidor)", d.status === 200 && db.processed === 0, JSON.stringify(db));
-} else {
-  console.log("skip dispatch: há notificações pendentes (não enviar e-mail no smoke)");
-}
 
 await admin.from("form_definitions").update({ active: false }).eq("version", ver);
 console.log(failures ? `\n${failures} falha(s)` : "\nSMOKE OK");
