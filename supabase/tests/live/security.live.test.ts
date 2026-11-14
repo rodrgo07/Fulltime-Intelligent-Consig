@@ -62,7 +62,6 @@ const RPCS: [string, Record<string, unknown>][] = [
   ["resolve_awaiting_request", { p_request_id: ZERO, p_resolution: "failed" }],
   ["storage_usage", {}],
   ["admin_set_member_active", { p_profile_id: ZERO, p_active: false }],
-  ["assert_admin", {}],
   // Assinatura do PR-B1 (sem e-mail): a suíte live roda depois do db push da 0006.
   ["svc_register_member", { p_user_id: ZERO, p_role: "admin", p_display_name: "x" }],
 ];
@@ -123,7 +122,7 @@ describe.skipIf(!URL_ || !HAS_OPS)("D3 live — isolamento entre operadores (RLS
   it("operador não executa funções de backoffice, admin nem de serviço", async () => {
     expect(code(await rpc("claim_next_job", { p_worker_id: "qa-live" }, b.token))).toBe("FORBIDDEN");
     expect(code(await rpc("storage_usage", {}, b.token))).toBe("FORBIDDEN");
-    expect(code(await rpc("assert_admin", {}, b.token))).toBe("FORBIDDEN");
+    expect(code(await rpc("admin_set_member_active", { p_profile_id: a.id, p_active: false }, b.token))).toBe("FORBIDDEN");
     const reg = await rpc("svc_register_member", { p_user_id: b.id, p_role: "admin", p_display_name: "x" }, b.token);
     expect([401, 403], `svc_register_member respondeu ${reg.status}`).toContain(reg.status);
   });
