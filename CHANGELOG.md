@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões seguem SemVer.
 
+## [Não lançado]
+
+### Corrigido
+- CI: `deno check` das Edge Functions roda dentro de `supabase/functions` (usa o `deno.json` local); na raiz o
+  Deno 2.9 exigia os pacotes npm no `node_modules` do pnpm e reescrevia o `package.json`.
+- Deploy: wrangler via `pnpm dlx` com versão fixa (o `cloudflare/wrangler-action` falhava com
+  `ERR_PNPM_ADDING_TO_ROOT`); pré-condições listam variáveis e secrets ausentes.
+
+### Alterado
+- Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment
+  `production` restrito a tags `v*` com aprovação. O deploy manual do Supabase deve ser disparado a partir de uma tag.
+
 ## [0.1.0] — 2026-11-12 — Fase 1: infraestrutura
 
 ### Adicionado
