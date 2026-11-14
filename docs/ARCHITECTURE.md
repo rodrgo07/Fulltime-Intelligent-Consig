@@ -5,12 +5,12 @@
 ```
  Operadores (navegador)                     Supabase (único backend)                    PC do backoffice (Windows)
 ┌──────────────────────┐  HTTPS/JWT   ┌──────────────────────────────────┐  HTTPS/JWT aal2  ┌───────────────────────────────┐
-│ Portal (React, CF    │─────────────▶│ Auth (convite, MFA)              │◀────────────────│ App desktop Tauri 2 (Rust)    │
+│ Portal (React, CF    │─────────────▶│ Auth (senha, MFA; sem e-mail)    │◀────────────────│ App desktop Tauri 2 (Rust)    │
 │ Pages, CSP estrita)  │◀── Realtime ─│ Postgres + RLS + funções SQL     │── Realtime ────▶│  • sessão + Credential Manager│
 └──────────────────────┘              │   (regras de negócio, fila,      │                  │  • worker da fila (background)│
                                       │    retenção, auditoria)          │                  │  • supervisor do motor        │
                                       │ pg_cron: retenção, recuperação   │                  │  • bandeja, autostart, update │
-                                      │ Edge Function: convite           │                  │  UI React 19 (WebView2)       │
+                                      │                                  │                  │  UI React 19 (WebView2)       │
                                       │                                  │                  └──────────────┬────────────────┘
                                       └──────────────────────────────────┘                     stdio JSON-RPC│
                                                                                            ┌──────────────▼────────────────┐
@@ -29,7 +29,6 @@
 | Portal web | `apps/portal` | login, formulário dinâmico, acompanhamento, admin | validar regras (só exibe) |
 | Backend | `supabase/migrations` | **todas** as regras: validação, rate limit, idempotência, fila, transições, retenção, auditoria | — |
 | Integração Supabase (desktop) | `apps/desktop/src-tauri/src/{supabase,auth,realtime}.rs` | REST/Auth/Realtime com JWT do backoffice | usar service_role |
-| Edge Functions | `supabase/functions` | convite de membros | regras de fila |
 | App desktop | `apps/desktop` | orquestração em segundo plano, UI operacional, integração com Windows | regras de negócio |
 | Motor RPA | `services/engine/src/fic_rpa` | executar fluxos em etapas no Consig com segurança | decidir negócio, guardar dados |
 | IA local | `services/engine/src/fic_ai`, `ialocal/` | interpretar telas inesperadas, sugerir ação de lista fechada | executar ações, usar APIs externas |
@@ -72,7 +71,6 @@ packages/contracts     contrato TS + fixtures JSON-RPC
 packages/brand         tokens visuais e fontes (IBM Plex)
 services/engine        motor RPA (fic_rpa) + IA local (fic_ai), Python 3.12
 supabase/migrations    esquema versionado
-supabase/functions     Edge Functions (Deno)
 supabase/tests         testes de banco (PGlite) e das funções
 ialocal/manifest.json  runtime de IA fixado por SHA-256
 .github/workflows      CI, release, deploy

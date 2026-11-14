@@ -1,20 +1,17 @@
 // B8 — chaves novas contra um projeto Supabase REMOTO, antes do go-live, com dados 100% fictícios.
-// Cobre: RPC com sb_publishable_ + JWT, recusa do anônimo, Realtime como o desktop e admin-invite com JWT real. Tudo o que é criado leva a marca RUN e é apagado no fim.
+// Cobre: RPC com sb_publishable_ + JWT, recusa do anônimo, Realtime como o desktop e a troca de senha obrigatória. Tudo o que é criado leva a marca RUN e é apagado no fim.
 //
 // CADA execução contra produção exige aprovação explícita do usuário. Só antes do go-live: a limpeza apaga
 // linhas de audit_logs dos dados fictícios, o que nunca deve ser feito com dados reais.
 //
 // Chaves fora da linha de comando (não ficam no histórico do shell): um arquivo .env FORA do repositório,
 //   ~/fic-b8.env  →  SUPABASE_URL=https://<ref>.supabase.co, SUPABASE_PUBLISHABLE_KEY=…, SUPABASE_SECRET_KEY=…,
-//                    PORTAL_URL=…
 //   FIC_B8_ALLOW_REMOTE=<ref> node --env-file="$HOME/fic-b8.env" tests/smoke/b8-remote.mjs
 // ou `read -rs SUPABASE_SECRET_KEY && export SUPABASE_SECRET_KEY` antes de rodar.
 //
 // Salvaguardas: aborta se houver formulário ativo, solicitação em andamento ou backoffice visto nos
 // últimos 30 min (o PC real poderia reservar o envio fictício); a solicitação fictícia é cancelada logo após o teste
-// de Realtime; e-mails só @exemplo.test; o convite com aal2 (que tenta enviar e-mail) só roda com
-// FIC_B8_INVITE_AAL2=1 e NÃO deve rodar com SMTP próprio configurado (bounce para @exemplo.test prejudica o domínio
-// de envio). Ctrl+C também limpa. Imprime só resultados, nunca chaves ou tokens.
+// de Realtime; e-mails só @exemplo.test (o sistema não envia e-mail). Ctrl+C também limpa. Imprime só resultados, nunca chaves ou tokens.
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 
@@ -30,7 +27,6 @@ if (process.env.FIC_B8_ALLOW_REMOTE !== REF) {
 }
 const PUB = env("SUPABASE_PUBLISHABLE_KEY");
 const SEC = env("SUPABASE_SECRET_KEY");
-const PORTAL = env("PORTAL_URL");
 if (!PUB.startsWith("sb_publishable_") || !SEC.startsWith("sb_secret_")) throw new Error("use as chaves novas");
 
 const RUN = `b8${Date.now().toString(36)}${randomBytes(2).toString("hex")}`;
@@ -63,7 +59,7 @@ async function member(role) {
   if (error) throw new Error(`createUser(${role}): ${error.message}`);
   created.users.push(data.user.id);
   const reg = await admin.rpc("svc_register_member", {
-    p_user_id: data.user.id, p_role: role, p_display_name: `Teste B8 ${role}`, p_email: email, p_invited_by: null,
+    p_user_id: data.user.id, p_role: role, p_display_name: `Teste B8 ${role}`,
   });
   check(`sb_secret_ executa svc_register_member (${role})`, !reg.error, reg.error?.message);
   const client = createClient(URL_, PUB, opts);
@@ -104,13 +100,6 @@ function socket(token, onEvent) {
   return { ws, joined, subscribed };
 }
 
-const fn = (name, { token, headers = {}, body = {}, method = "POST" } = {}) =>
-  fetch(`${URL_}/functions/v1/${name}`, {
-    method,
-    headers: { apikey: PUB, "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
-    body: method === "POST" ? JSON.stringify(body) : undefined,
-  });
-const code = async (res) => `${res.status} ${(await res.json().catch(() => ({}))).code ?? ""}`.trim();
 
 async function cleanup() {
   for (const ws of created.sockets) try { ws.close(); } catch { /* já fechado */ }
@@ -222,25 +211,14 @@ try {
     }
   }
 
-  const pre = await fn("admin-invite", { method: "OPTIONS", headers: { Origin: PORTAL, "Access-Control-Request-Headers": "authorization, x-client-info, apikey, content-type" } });
-  const allow = pre.headers.get("access-control-allow-headers") ?? "";
-  check("preflight libera x-client-info", pre.status === 204 && allow.includes("x-client-info"));
-  const inviteBody = { email: MAIL("convite"), display_name: "Convite Fictício B8", role: "operator" };
-  check("convite sem JWT → 401", (await code(await fn("admin-invite", { body: inviteBody }))) === "401 UNAUTHENTICATED");
-  check("convite com chave no Bearer → 401", (await code(await fn("admin-invite", { token: PUB, body: inviteBody }))) === "401 UNAUTHENTICATED");
-  check("convite com JWT adulterado → 401", (await code(await fn("admin-invite", { token: op.token.slice(0, -4) + "AAAA", body: inviteBody }))) === "401 UNAUTHENTICATED");
-  check("convite por operador → 403 FORBIDDEN", (await code(await fn("admin-invite", { token: op.token, body: inviteBody }))) === "403 FORBIDDEN");
-  const adm = await member("admin");
-  check("convite por admin aal1 → 403 MFA_REQUIRED", (await code(await fn("admin-invite", { token: adm.token, body: inviteBody }))) === "403 MFA_REQUIRED");
-  if (process.env.FIC_B8_INVITE_AAL2 === "1") {
-    await withMfa(adm);
-    const inv = await code(await fn("admin-invite", { token: adm.token, body: inviteBody }));
-    // 201 = convite criado. 502 INVITE_FAILED = o JWT passou e a chave de servidor chegou ao Auth admin, mas o
-    // envio do e-mail foi recusado (sem SMTP próprio, o SMTP padrão só envia para a equipe do projeto).
-    check("convite por admin aal2 passa da autenticação (201, ou 502 sem SMTP)", inv === "201" || inv === "502 INVITE_FAILED", inv);
-  } else {
-    console.log("skip convite aal2: defina FIC_B8_INVITE_AAL2=1 (só sem SMTP próprio; tenta enviar e-mail)");
-  }
+  // Troca de senha obrigatória (0007): cadastro novo nasce com must_change_password = true; o próprio usuário troca a
+  // senha no Auth (sem código por e-mail) e baixa a flag pela RPC.
+  const flagOf = async (m) => (await m.client.from("profiles").select("must_change_password").eq("id", m.id).single()).data?.must_change_password;
+  check("cadastro novo nasce com must_change_password = true", (await flagOf(op)) === true);
+  const upd = await op.client.auth.updateUser({ password: randomBytes(18).toString("base64url") + "aA1" });
+  check("troca de senha logada sem código por e-mail (secure_password_change = false)", !upd.error, upd.error?.message);
+  const mk = await op.client.rpc("mark_password_changed");
+  check("mark_password_changed baixa a flag do próprio usuário", !mk.error && (await flagOf(op)) === false, mk.error?.message);
 } catch (e) {
   failures++;
   console.log(`FAIL execução interrompida — ${e.message}`);

@@ -50,7 +50,7 @@ begin
   select count(*) into n from pg_proc p join pg_namespace s on s.oid = p.pronamespace
    where s.nspname = 'public' and p.proname like 'svc\_%' and has_function_privilege('authenticated', p.oid, 'execute');
   if n > 0 then raise exception 'COMPAT: authenticated executa svc_*'; end if;
-  if not has_function_privilege('service_role', 'public.svc_register_member(uuid,public.app_role,text,text,uuid)', 'execute') then
+  if not has_function_privilege('service_role', 'public.svc_register_member(uuid,public.app_role,text)', 'execute') then
     raise exception 'COMPAT: service_role não executa svc_register_member';
   end if;
 

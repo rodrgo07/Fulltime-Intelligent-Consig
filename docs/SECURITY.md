@@ -15,9 +15,9 @@
 | Replay/duplicidade | chave de idempotência por envio, fingerprint do payload, JWT de 1 h, rotação de refresh token |
 | Abuso/automação no portal | rate limit no banco (10/min, 300/dia por operador), cadastro aberto desligado |
 | Roubo de sessão do backoffice | MFA TOTP obrigatório (aal2), refresh token no Credential Manager (DPAPI), validade máxima configurável (24 h) |
-| Vazamento da service_role | só existe nas Edge Functions (secret do Supabase). Desktop **só aceita** `sb_publishable_…` ou o JWT `anon` legado: `sb_secret_`/`service_role` dão `SERVICE_ROLE_FORBIDDEN` (na configuração e de novo ao montar o cliente HTTP, cobrindo `config.json` editado à mão); outros formatos dão `INVALID_ANON_KEY` |
-| Edge Function chamada sem usuário | `admin-invite` com `verify_jwt = false` (o check do gateway não é confiável com as chaves novas) e validação no código: exige `Authorization: Bearer <JWT>`, recusa chaves `sb_` ali, `assert_admin` valida a assinatura no PostgREST e `auth.getUser` confirma o usuário |
-| RPC `security definer` executável por `authenticated` (advisor `authenticated_security_definer_function_executable`) | **aceito**: as funções de `public` concedidas a `authenticated` (migration `…0003`) são a superfície da API; cada uma valida o papel e o MFA por dentro (`private.require_role`) e aplica as regras de negócio. `assert_admin()` também é exposta de propósito: o `admin-invite` a chama com o JWT do usuário para que o PostgREST valide a assinatura e o banco confira papel + aal2; ela não lê nem grava nada. Funções `svc_*` só para `service_role`; helpers internos ficam em `private` |
+| Vazamento da service_role | não há Edge Functions: a chave de servidor só é usada por quem administra (SQL Editor/CLI). Desktop **só aceita** `sb_publishable_…` ou o JWT `anon` legado: `sb_secret_`/`service_role` dão `SERVICE_ROLE_FORBIDDEN` (na configuração e de novo ao montar o cliente HTTP, cobrindo `config.json` editado à mão); outros formatos dão `INVALID_ANON_KEY` |
+| Cadastro/recuperação sem e-mail | só um admin cria usuários (painel + SQL Editor), com a identidade conferida fora do sistema; senha provisória entregue por canal seguro e **troca obrigatória** no primeiro login (`must_change_password`); MFA perdido só é removido pelo admin |
+| RPC `security definer` executável por `authenticated` (advisor `authenticated_security_definer_function_executable`) | **aceito**: as funções de `public` concedidas a `authenticated` (migration `…0003`) são a superfície da API; cada uma valida o papel e o MFA por dentro (`private.require_role`) e aplica as regras de negócio. Funções `svc_*` só para `service_role`; helpers internos ficam em `private` |
 | Tabela sem política (advisor `rls_enabled_no_policy` em `clients_temp`) | **intencional**: RLS ligado e nenhuma política = inacessível pela API; os dados pessoais só passam por funções controladas |
 | XSS no portal | React (escape), CSP `script-src 'self'`, sem `dangerouslySetInnerHTML`, `object-src 'none'` |
 | CSRF | não aplicável: autenticação por header Bearer, sem cookies de sessão |
@@ -34,8 +34,7 @@
 
 | Segredo | Onde fica | Nunca |
 |---|---|---|
-| Chave de servidor (`sb_secret_…`; legada `service_role`) | injetada pelo Supabase nas Edge Functions (`SUPABASE_SECRET_KEYS`, JSON por nome, `default`; alternativa `SUPABASE_SERVICE_ROLE_KEY`) — nunca configurar à mão | portal, desktop, repositório |
-| `PORTAL_URL` (usado pelo `admin-invite`) | `supabase secrets set` | repositório |
+| Chave de servidor (`sb_secret_…`; legada `service_role`) | só no painel do Supabase/cofre de quem administra; o B8 a lê de um `.env` fora do git | portal, desktop, repositório |
 | Chave privada de assinatura (`TAURI_SIGNING_PRIVATE_KEY` + senha) | GitHub Actions secrets | máquinas de operadores, repositório |
 | `CLOUDFLARE_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` | GitHub Environment `production` | repositório |
 | Refresh token do backoffice | Windows Credential Manager | arquivos de configuração |
@@ -44,8 +43,8 @@
 Hospedagem: o projeto Supabase de produção (`qqgzbuaizprpmjeozzis`) está em **us-east-1**: há transferência
 internacional de dados (ver `LGPD.md` §1). Auth: cadastro aberto desligado (`auth.enable_signup = false`) e
 provedor de e-mail **ligado** (`auth.email.enabled = true`; não usar `auth.email.enable_signup`, que no CLI v3
-desliga o login por e-mail). Os templates PT-BR (`supabase/templates/`) só sobem no `config push` depois do SMTP
-próprio (Resend) configurado: no plano free o Supabase recusa templates com o SMTP padrão.
+desliga o login por e-mail). **O sistema não envia e-mail**: sem templates, sem SMTP próprio, sem confirmação
+de cadastro ou de troca de e-mail e `secure_password_change = false` (a troca de senha logada não pede código).
 
 `.gitignore` bloqueia `.env*`, `*.key`, `*.pem`. A chave **publishable**/**anon** e a chave **pública** do updater não são segredos.
 
@@ -59,7 +58,7 @@ próprio (Resend) configurado: no plano free o Supabase recusa templates com o S
 
 ## Repositório público
 
-Migrations, políticas e Edge Functions ficam visíveis. Por isso: nenhum segredo, nenhuma URL interna,
+Migrations e políticas ficam visíveis. Por isso: nenhum segredo, nenhuma URL interna,
 seletor ou detalhe operacional sensível do Consig no código; o endereço do Consig é configuração local.
 
 ## Resposta a incidentes (técnico)

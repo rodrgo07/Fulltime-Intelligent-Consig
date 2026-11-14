@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
-import { activateTestForm, as, createMember, errorCode, FAKE_CPF, freshDb, rpc } from "./harness/db";
+import { activateTestForm, applyMigrations, as, createMember, errorCode, FAKE_CPF, freshDb, rpc } from "./harness/db";
 
 let db: PGlite;
 let op: string;
@@ -140,15 +140,15 @@ describe("isolamento e privilégios", () => {
   it("operador não executa funções do backoffice nem de serviço", async () => {
     expect(await errorCode(as(db, { sub: op }, (tx) => rpc(tx, "public.claim_next_job('x')")))).toBe("FORBIDDEN");
     expect(await errorCode(as(db, { sub: op }, (tx) =>
-      rpc(tx, "public.svc_register_member(gen_random_uuid(), 'admin', 'x', 'x@exemplo.test', null)"))))
+      rpc(tx, "public.svc_register_member(gen_random_uuid(), 'admin', 'x')"))))
       .toMatch(/permission denied/);
   });
 
   it("backoffice e admin exigem MFA (aal2)", async () => {
     expect(await errorCode(as(db, { sub: bo, aal: "aal1" }, (tx) => rpc(tx, "public.claim_next_job('x')"))))
       .toBe("MFA_REQUIRED");
-    expect(await errorCode(as(db, { sub: admin, aal: "aal1" }, (tx) => rpc(tx, "public.assert_admin()"))))
-      .toBe("MFA_REQUIRED");
+    expect(await errorCode(as(db, { sub: admin, aal: "aal1" }, (tx) =>
+      rpc(tx, "public.admin_set_member_active($1, false)", [op])))).toBe("MFA_REQUIRED");
   });
 
   it("backoffice não é admin", async () => {
@@ -191,6 +191,71 @@ describe("isolamento e privilégios", () => {
     expect(await errorCode(db.query(
       "insert into public.form_definitions (version, title, fields) values (9, 'x', $1)",
       [JSON.stringify([{ key: "A", label: "", type: "foo" }])]))).toBe("FORM_DEFINITION_INVALID");
+  });
+});
+
+describe("cadastro sem e-mail (0007)", () => {
+  it("svc_register_member tem 3 argumentos, só service_role executa e o operador não tem e-mail próprio", async () => {
+    const sig = await db.query<{ args: string }>(`
+      select pg_get_function_identity_arguments(p.oid) args from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'svc_register_member'`);
+    expect(sig.rows.map((r) => r.args)).toEqual(["p_user_id uuid, p_role app_role, p_display_name text"]);
+    const priv = await one<{ svc: boolean; auth: boolean }>(`select
+      has_function_privilege('service_role', 'public.svc_register_member(uuid, public.app_role, text)', 'execute') svc,
+      has_function_privilege('authenticated', 'public.svc_register_member(uuid, public.app_role, text)', 'execute') auth`);
+    expect(priv).toEqual({ svc: true, auth: false });
+    const col = await one<{ c: number }>(`select count(*)::int c from information_schema.columns
+      where table_schema = 'public' and table_name = 'operators' and column_name = 'notification_email'`);
+    expect(col.c).toBe(0);
+    expect((await one<{ f: string | null }>("select to_regprocedure('public.assert_admin()')::text f")).f).toBeNull();
+    // Recadastro é idempotente e mantém o código do operador.
+    const code = (await one<{ c: string }>("select operator_code c from public.operators where id = $1", [op])).c;
+    const again = await one<{ r: { operator_code: string } }>(
+      "select public.svc_register_member($1, 'operator', 'Outro Nome') r", [op]);
+    expect(again.r.operator_code).toBe(code);
+    expect((await one<{ action: string; details: { role: string } }>(
+      "select action, details from public.audit_logs where action = 'member.registered' order by id desc limit 1")).details.role)
+      .toBe("operator");
+  });
+
+  it("perfil já existente antes da 0007 fica com must_change_password = false; cadastro novo nasce true", async () => {
+    const old = await freshDb({ before: "20261114000007" });
+    const id = crypto.randomUUID();
+    await old.query("insert into auth.users (id, email) values ($1, 'antigo@exemplo.test')", [id]);
+    await old.query("select public.svc_register_member($1, 'admin', 'Admin Antigo', 'antigo@exemplo.test', null)", [id]);
+    await applyMigrations(old, { from: "20261114000007" });
+    expect((await old.query<{ m: boolean }>("select must_change_password m from public.profiles where id = $1", [id])).rows[0].m)
+      .toBe(false);
+    const fresh = crypto.randomUUID();
+    await old.query("insert into auth.users (id, email) values ($1, 'novo@exemplo.test')", [fresh]);
+    await old.query("select public.svc_register_member($1, 'operator', 'Operador Novo')", [fresh]);
+    expect((await old.query<{ m: boolean }>("select must_change_password m from public.profiles where id = $1", [fresh])).rows[0].m)
+      .toBe(true);
+    await old.close();
+  });
+
+  it("mark_password_changed baixa só a flag do próprio usuário e audita", async () => {
+    const flag = async (id: string) =>
+      (await one<{ m: boolean }>("select must_change_password m from public.profiles where id = $1", [id])).m;
+    expect(await flag(op)).toBe(true);
+    expect(await flag(op2)).toBe(true);
+    await as(db, { sub: op }, (tx) => rpc(tx, "public.mark_password_changed()"));
+    expect(await flag(op)).toBe(false);
+    expect(await flag(op2)).toBe(true);
+    // Repetir não gera novo registro de auditoria.
+    await as(db, { sub: op }, (tx) => rpc(tx, "public.mark_password_changed()"));
+    expect((await one<{ n: number }>(
+      "select count(*)::int n from public.audit_logs where action = 'member.password_changed' and actor_id = $1", [op])).n).toBe(1);
+    // O próprio usuário lê a flag (RLS do próprio perfil).
+    const own = await as(db, { sub: op2 }, (tx) => tx.query<{ must_change_password: boolean }>(
+      "select must_change_password from public.profiles where id = $1", [op2]));
+    expect(own.rows[0].must_change_password).toBe(true);
+  });
+
+  it("mark_password_changed exige usuário autenticado", async () => {
+    expect(await errorCode(as(db, {}, (tx) => rpc(tx, "public.mark_password_changed()")))).toBe("UNAUTHENTICATED");
+    expect(await errorCode(as(db, { role: "anon" }, (tx) => rpc(tx, "public.mark_password_changed()"))))
+      .toMatch(/permission denied/);
   });
 });
 
