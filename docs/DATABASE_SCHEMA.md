@@ -44,9 +44,16 @@ publicação `supabase_realtime`, privilégios de `anon`/`authenticated`/`servic
 `supabase/tests/smoke/new-keys.mjs` (`pnpm --filter @fic/supabase smoke:local`) testa num Supabase **local**
 completo as chaves novas: RPC com publishable + JWT, recusa do anônimo, Realtime como o desktop faz, convite e
 dispatch.
-`supabase/tests/smoke/b8-remote.mjs` (`smoke:b8-remote`, exige `FIC_B8_ALLOW_REMOTE=1`) faz o mesmo contra o projeto
-**remoto antes do go-live** (B8): cria usuários `@exemplo.test` com uma marca de execução, aborta se houver formulário
-ativo ou e-mail pendente e apaga tudo no fim (`finally`). `CRON_SECRET` é opcional; sem ele, só os 401 do dispatch.
+`supabase/tests/smoke/b8-remote.mjs` (`smoke:b8-remote`) faz o mesmo contra o projeto **remoto antes do go-live**
+(B8). **Cada execução em produção exige aprovação explícita do usuário.**
+- Exige `FIC_B8_ALLOW_REMOTE=<ref do projeto>`. As chaves vêm de um `.env` fora do repositório (`node --env-file=…`)
+  ou de `read -rs`, nunca inline na linha de comando (ficariam no histórico do shell).
+- Cria usuários `@exemplo.test` com uma marca de execução.
+- Aborta se houver formulário ativo, e-mail pendente, solicitação em andamento ou backoffice visto nos últimos 30 min.
+- Cancela a solicitação fictícia logo após o teste de Realtime e apaga tudo no fim (`finally` e Ctrl+C).
+- A limpeza apaga `audit_logs` dos dados fictícios, o que só vale antes do go-live.
+- O convite com aal2 é opcional (`FIC_B8_INVITE_AAL2=1`) e não deve rodar com SMTP próprio (bounce para `@exemplo.test`).
+- `CRON_SECRET` é opcional; sem ele, só os 401 do dispatch.
 
 ## Configurações (`app_settings`)
 

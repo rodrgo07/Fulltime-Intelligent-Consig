@@ -1,12 +1,21 @@
 // B8 — chaves novas contra um projeto Supabase REMOTO, antes do go-live, com dados 100% fictícios.
 // Cobre: RPC com sb_publishable_ + JWT, recusa do anônimo, Realtime como o desktop, admin-invite com JWT real,
-// dispatch-notifications com x-cron-secret. Tudo o que é criado leva a marca RUN e é apagado no finally.
+// dispatch-notifications com x-cron-secret. Tudo o que é criado leva a marca RUN e é apagado no fim.
 //
-//   FIC_B8_ALLOW_REMOTE=1 SUPABASE_URL=https://<ref>.supabase.co SUPABASE_PUBLISHABLE_KEY=... \
-//   SUPABASE_SECRET_KEY=... CRON_SECRET=... PORTAL_URL=... node tests/smoke/b8-remote.mjs
+// CADA execução contra produção exige aprovação explícita do usuário. Só antes do go-live: a limpeza apaga
+// linhas de audit_logs dos dados fictícios, o que nunca deve ser feito com dados reais.
 //
-// Regras: nunca rodar com formulário ativo ou fila de e-mail pendente (aborta); e-mails só @exemplo.test;
-// nenhum dado real; não envia e-mail de conclusão (fila vazia). Imprime só resultados, nunca chaves ou tokens.
+// Chaves fora da linha de comando (não ficam no histórico do shell): um arquivo .env FORA do repositório,
+//   ~/fic-b8.env  →  SUPABASE_URL=https://<ref>.supabase.co, SUPABASE_PUBLISHABLE_KEY=…, SUPABASE_SECRET_KEY=…,
+//                    PORTAL_URL=… e, opcional, CRON_SECRET=…
+//   FIC_B8_ALLOW_REMOTE=<ref> node --env-file="$HOME/fic-b8.env" tests/smoke/b8-remote.mjs
+// ou `read -rs SUPABASE_SECRET_KEY && export SUPABASE_SECRET_KEY` antes de rodar.
+//
+// Salvaguardas: aborta se houver formulário ativo, e-mail pendente, solicitação em andamento ou backoffice visto nos
+// últimos 30 min (o PC real poderia reservar o envio fictício); a solicitação fictícia é cancelada logo após o teste
+// de Realtime; e-mails só @exemplo.test; o convite com aal2 (que tenta enviar e-mail) só roda com
+// FIC_B8_INVITE_AAL2=1 e NÃO deve rodar com SMTP próprio configurado (bounce para @exemplo.test prejudica o domínio
+// de envio). Ctrl+C também limpa. Imprime só resultados, nunca chaves ou tokens.
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 
@@ -15,8 +24,11 @@ const env = (k) => {
   if (!v) throw new Error(`defina ${k}`);
   return v;
 };
-if (process.env.FIC_B8_ALLOW_REMOTE !== "1") throw new Error("defina FIC_B8_ALLOW_REMOTE=1 (cria e apaga dados fictícios)");
 const URL_ = env("SUPABASE_URL").replace(/\/$/, "");
+const REF = new URL(URL_).hostname.split(".")[0];
+if (process.env.FIC_B8_ALLOW_REMOTE !== REF) {
+  throw new Error(`defina FIC_B8_ALLOW_REMOTE=${REF} (confirma o projeto; cria e apaga dados fictícios)`);
+}
 const PUB = env("SUPABASE_PUBLISHABLE_KEY");
 const SEC = env("SUPABASE_SECRET_KEY");
 // Opcional: sem ele, o caminho 200 do dispatch é verificado pelo pg_net com os segredos do Vault (como o cron faz).
@@ -33,7 +45,7 @@ const check = (name, ok, extra = "") => {
 };
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 const admin = createClient(URL_, SEC, opts);
-const created = { users: [], formVersion: null, sockets: [] };
+const created = { users: [], formVersion: null, sockets: [], requests: [] };
 
 function totp(base32) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -105,6 +117,13 @@ const code = async (res) => `${res.status} ${(await res.json().catch(() => ({}))
 
 async function cleanup() {
   for (const ws of created.sockets) try { ws.close(); } catch { /* já fechado */ }
+  const errs = [];
+  const step = async (label, p) => { const { error } = await p; if (error) errs.push(`${label}: ${error.message}`); };
+  // Solicitação fictícia ainda aberta (ex.: Ctrl+C antes do cancelamento): tira da fila primeiro.
+  for (const r of created.requests) {
+    await step("cancel", admin.from("proposal_requests").update({ status: "cancelled", status_reason: `teste B8 ${RUN}` })
+      .eq("id", r.id).in("status", ["received", "queued"]));
+  }
   const ids = created.users;
   // Usuário eventualmente criado pelo convite (mesma marca RUN).
   for (let page = 1; page <= 20; page++) {
@@ -113,11 +132,10 @@ async function cleanup() {
     for (const u of users) if (u.email?.includes(`-${RUN}-`) && !ids.includes(u.id)) ids.push(u.id);
     if (users.length < 200) break;
   }
-  const errs = [];
-  const step = async (label, p) => { const { error } = await p; if (error) errs.push(`${label}: ${error.message}`); };
   if (ids.length) {
     const reqs = (await admin.from("proposal_requests").select("id").in("submitted_by", ids)).data ?? [];
     const reqIds = reqs.map((r) => r.id);
+    // audit_logs só é apagado porque tudo aqui é fictício e o projeto ainda não está em produção.
     if (reqIds.length) await step("audit(req)", admin.from("audit_logs").delete().in("request_id", reqIds));
     await step("requests", admin.from("proposal_requests").delete().in("submitted_by", ids));
     await step("audit(actor)", admin.from("audit_logs").delete().in("actor_id", ids));
@@ -125,8 +143,7 @@ async function cleanup() {
     await step("app_versions", admin.from("app_versions").delete().in("last_reported_by", ids));
   }
   if (created.formVersion) {
-    await step("audit(form)", admin.from("audit_logs").delete().is("request_id", null).in("actor_id", ids));
-    await step("form", admin.from("form_definitions").delete().eq("version", created.formVersion));
+    await step("form", admin.from("form_definitions").delete().eq("version", created.formVersion).like("title", `%${RUN}%`));
   }
   for (const id of ids) {
     const { error } = await admin.auth.admin.deleteUser(id);
@@ -136,9 +153,28 @@ async function cleanup() {
   return { ids, errs };
 }
 
-let summary;
+let summary = { errs: [] };
+let cleaning = false;
+for (const sig of ["SIGINT", "SIGTERM"]) {
+  process.on(sig, async () => {
+    if (cleaning) return;
+    cleaning = true;
+    console.log(`\n${sig}: limpando os dados fictícios antes de sair…`);
+    await cleanup().catch((e) => console.log(`LIMPEZA FALHOU: ${e.message}`));
+    process.exit(130);
+  });
+}
+
 try {
   // Pré-condições de segurança: não interferir em nada existente.
+  const busy = await admin.from("proposal_requests").select("id", { count: "exact", head: true })
+    .not("status", "in", "(completed,failed,cancelled)");
+  if ((busy.count ?? 0) > 0) throw new Error("há solicitação em andamento: abortado para não interferir na fila");
+  const seen = await admin.from("app_versions").select("last_seen_at").order("last_seen_at", { ascending: false }).limit(1);
+  const last = seen.data?.[0]?.last_seen_at;
+  if (last && Date.now() - new Date(last).getTime() < 30 * 60_000) {
+    throw new Error("backoffice visto nos últimos 30 min: abortado (o PC real poderia reservar o envio fictício)");
+  }
   const active = await admin.from("form_definitions").select("version", { count: "exact", head: true }).eq("active", true);
   if ((active.count ?? 0) > 0) throw new Error("há formulário ativo: abortado para não interferir");
   const pend = await admin.from("notification_queue").select("id", { count: "exact", head: true }).in("status", ["pending", "sending"]);
@@ -155,7 +191,6 @@ try {
   const bo = await withMfa(await member("backoffice"));
   const hb = await bo.client.rpc("report_backoffice_heartbeat", { p_app_version: "0.0.0-b8", p_channel: "development" });
   check("backoffice aal2 executa RPC", !hb.error, hb.error?.message);
-  const boAal1 = createClient(URL_, PUB, opts);
   check("RLS: operador não lê auditoria", ((await op.client.from("audit_logs").select("id")).data ?? []).length === 0);
 
   const ver = 900 + Math.floor(Math.random() * 99);
@@ -174,15 +209,23 @@ try {
   check("Realtime aceita sb_publishable_ + JWT do backoffice (aal2)", (await s2.joined) === "ok");
   check("inscrição postgres_changes confirmada (operador)", (await s1.subscribed) === "ok");
   check("inscrição postgres_changes confirmada (backoffice)", (await s2.subscribed) === "ok");
-  const sub = await op.client.rpc("submit_proposal_request", {
-    p_idempotency_key: randomUUID(), p_form_version: ver, p_payload: { nome_teste: "Pessoa Fictícia" },
-  });
-  check("envio fictício do operador", !sub.error, sub.error?.message);
-  // Desativa logo o formulário de teste: nenhum outro envio possível.
-  await admin.from("form_definitions").update({ active: false }).eq("version", ver);
-  for (let i = 0; i < 80 && (opEvents === 0 || boEvents === 0); i++) await new Promise((r) => setTimeout(r, 250));
-  check("evento postgres_changes chega ao operador (RLS)", opEvents > 0);
-  check("evento postgres_changes chega ao backoffice (RLS staff)", boEvents > 0);
+  if (created.formVersion) {
+    const sub = await op.client.rpc("submit_proposal_request", {
+      p_idempotency_key: randomUUID(), p_form_version: created.formVersion, p_payload: { nome_teste: "Pessoa Fictícia" },
+    });
+    check("envio fictício do operador", !sub.error, sub.error?.message);
+    if (sub.data?.request_id) created.requests.push({ id: sub.data.request_id, client: op.client });
+    // Desativa logo o formulário de teste (só o nosso): nenhum outro envio possível.
+    await admin.from("form_definitions").update({ active: false }).eq("version", created.formVersion);
+    for (let i = 0; i < 80 && (opEvents === 0 || boEvents === 0); i++) await new Promise((r) => setTimeout(r, 250));
+    check("evento postgres_changes chega ao operador (RLS)", opEvents > 0);
+    check("evento postgres_changes chega ao backoffice (RLS staff)", boEvents > 0);
+    // Cancela já: a solicitação fictícia não fica disponível para o backoffice reservar.
+    for (const r of created.requests) {
+      const c = await r.client.rpc("cancel_proposal_request", { p_request_id: r.id, p_reason: `teste B8 ${RUN}` });
+      check("solicitação fictícia cancelada logo após o Realtime", !c.error && c.data?.status === "cancelled", c.error?.message);
+    }
+  }
 
   const pre = await fn("admin-invite", { method: "OPTIONS", headers: { Origin: PORTAL, "Access-Control-Request-Headers": "authorization, x-client-info, apikey, content-type" } });
   const allow = pre.headers.get("access-control-allow-headers") ?? "";
@@ -194,12 +237,15 @@ try {
   check("convite por operador → 403 FORBIDDEN", (await code(await fn("admin-invite", { token: op.token, body: inviteBody }))) === "403 FORBIDDEN");
   const adm = await member("admin");
   check("convite por admin aal1 → 403 MFA_REQUIRED", (await code(await fn("admin-invite", { token: adm.token, body: inviteBody }))) === "403 MFA_REQUIRED");
-  await withMfa(adm);
-  const inv = await code(await fn("admin-invite", { token: adm.token, body: inviteBody }));
-  // 201 = convite criado. 502 INVITE_FAILED = o JWT passou e a chave de servidor chegou ao Auth admin, mas o
-  // envio do e-mail foi recusado (sem SMTP próprio, o SMTP padrão só envia para a equipe do projeto).
-  check("convite por admin aal2 passa da autenticação (201, ou 502 sem SMTP)", inv === "201" || inv === "502 INVITE_FAILED", inv);
-  void boAal1;
+  if (process.env.FIC_B8_INVITE_AAL2 === "1") {
+    await withMfa(adm);
+    const inv = await code(await fn("admin-invite", { token: adm.token, body: inviteBody }));
+    // 201 = convite criado. 502 INVITE_FAILED = o JWT passou e a chave de servidor chegou ao Auth admin, mas o
+    // envio do e-mail foi recusado (sem SMTP próprio, o SMTP padrão só envia para a equipe do projeto).
+    check("convite por admin aal2 passa da autenticação (201, ou 502 sem SMTP)", inv === "201" || inv === "502 INVITE_FAILED", inv);
+  } else {
+    console.log("skip convite aal2: defina FIC_B8_INVITE_AAL2=1 (só sem SMTP próprio; tenta enviar e-mail)");
+  }
 
   check("dispatch sem segredo → 401", (await fn("dispatch-notifications")).status === 401);
   check("dispatch com segredo errado → 401", (await fn("dispatch-notifications", { headers: { "x-cron-secret": "errado-" + RUN } })).status === 401);
@@ -214,7 +260,10 @@ try {
   failures++;
   console.log(`FAIL execução interrompida — ${e.message}`);
 } finally {
-  summary = await cleanup();
+  if (!cleaning) {
+    cleaning = true;
+    summary = await cleanup();
+  }
 }
 console.log(failures || summary.errs.length ? `\nB8: ${failures} falha(s)` : `\nB8 OK (run ${RUN})`);
 process.exit(failures || summary.errs.length ? 1 : 0);
