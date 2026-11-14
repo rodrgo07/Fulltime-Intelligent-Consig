@@ -33,11 +33,17 @@
 |---|---|---|
 | service_role | injetado pelo Supabase nas Edge Functions | portal, desktop, repositório |
 | `RESEND_API_KEY`, `MAIL_FROM`, `CRON_SECRET`, `PORTAL_URL` | `supabase secrets set` | repositório |
-| `fic_functions_url`, `fic_cron_secret` | Supabase Vault | migrations |
+| `fic_functions_url`, `fic_cron_secret` | Supabase Vault (o valor de `fic_cron_secret` é o mesmo do secret `CRON_SECRET`; gerar e gravar os dois no mesmo comando, sem imprimir) | migrations |
 | Chave privada de assinatura (`TAURI_SIGNING_PRIVATE_KEY` + senha) | GitHub Actions secrets | máquinas de operadores, repositório |
 | `CLOUDFLARE_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` | GitHub Environment `production` | repositório |
 | Refresh token do backoffice | Windows Credential Manager | arquivos de configuração |
 | Senha do Consig | **não armazenada** (login humano) | — |
+
+Hospedagem: o projeto Supabase de produção (`qqgzbuaizprpmjeozzis`) está em **us-east-1**: há transferência
+internacional de dados (ver `LGPD.md` §1). Auth: cadastro aberto desligado (`auth.enable_signup = false`) e
+provedor de e-mail **ligado** (`auth.email.enabled = true`; não usar `auth.email.enable_signup`, que no CLI v3
+desliga o login por e-mail). Os templates PT-BR (`supabase/templates/`) só sobem no `config push` depois do SMTP
+próprio (Resend) configurado: no plano free o Supabase recusa templates com o SMTP padrão.
 
 `.gitignore` bloqueia `.env*`, `*.key`, `*.pem`. A chave **anon** e a chave **pública** do updater não são segredos.
 

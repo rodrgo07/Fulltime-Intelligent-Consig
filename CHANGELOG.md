@@ -9,6 +9,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
   Deno 2.9 exigia os pacotes npm no `node_modules` do pnpm e reescrevia o `package.json`.
 - Deploy: wrangler via `pnpm dlx` com versão fixa (o `cloudflare/wrangler-action` falhava com
   `ERR_PNPM_ADDING_TO_ROOT`); pré-condições listam variáveis e secrets ausentes.
+- `supabase/config.toml`: removido `auth.email.enable_signup = false`, que no CLI v3 vira `auth.email.enabled = false`
+  e desligaria o login por e-mail; cadastro aberto segue bloqueado por `auth.enable_signup = false`.
+
+### Adicionado
+- Templates de e-mail do Auth em PT-BR (convite e recuperação) em `supabase/templates/`; aplicados após o SMTP
+  próprio (Resend), exigido pelo Supabase no plano free.
+- Teste de regressão do `config.toml` (`supabase/tests/config.test.ts`).
+- Documentação: projeto Supabase em us-east-1 (transferência internacional, `LGPD.md`/`SECURITY.md`).
 
 ### Alterado
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment

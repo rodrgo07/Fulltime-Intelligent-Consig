@@ -12,6 +12,10 @@
   Resend (envio de e-mail), GitHub (código e distribuição do app). Exigir contratos/DPAs e verificar
   transferência internacional (art. 33) — os provedores podem armazenar dados fora do Brasil; escolher região
   do projeto Supabase compatível.
+- **Região do Supabase (decisão de 2026-11-13)**: o projeto de produção `qqgzbuaizprpmjeozzis` fica em
+  **us-east-1 (EUA)**; não foi possível criar o projeto em São Paulo na conta. Há, portanto, **transferência
+  internacional** de dados pessoais (operadores e, durante a execução, clientes em `clients_temp`), que o Bloco F
+  precisa enquadrar no art. 33 (cláusulas-padrão/DPA do Supabase) e registrar no RIPD. [VALIDAR]
 - **Encarregado**: nomear e publicar o canal de contato (art. 41).
 
 ## 2. Finalidade e bases legais [VALIDAR]
@@ -80,7 +84,7 @@ com validação determinística e intervenção humana.
 - [ ] Papéis de controlador/operador definidos e contratos assinados
 - [ ] Bases legais documentadas por finalidade
 - [ ] Prazos de retenção aprovados (substituir 90 dias se necessário em `app_settings`)
-- [ ] Região do Supabase e política de backup verificadas
+- [ ] Região do Supabase (hoje us-east-1, transferência internacional) e política de backup verificadas
 - [ ] RIPD concluído
 - [ ] Pentest e revisão de código independentes
 - [ ] Treinamento dos operadores e do backoffice
