@@ -34,6 +34,14 @@ describe("Intro", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("fundo bege até a saída: remove `intro-pending` do <html> quando a intro começa a sair", () => {
+    document.documentElement.classList.add("intro-pending");
+    render(<Intro canSkip onDone={() => {}} />);
+    expect(document.documentElement.classList.contains("intro-pending")).toBe(true);
+    act(() => { fireEvent.keyDown(window, { key: "Escape" }); });
+    expect(document.documentElement.classList.contains("intro-pending")).toBe(false);
+  });
+
   it("timeout de segurança se o vídeo não terminar", () => {
     const onDone = vi.fn();
     render(<Intro canSkip={false} onDone={onDone} />);

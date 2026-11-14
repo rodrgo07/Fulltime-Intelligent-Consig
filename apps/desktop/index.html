@@ -1,9 +1,12 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="dark" class="intro-pending">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fulltime Intelligent Consig</title>
+    <!-- Até a intro começar a sair, o fundo é o mesmo da borda do vídeo (#ddd7ce, igual ao backgroundColor da
+         janela no tauri.conf.json): sem lampejo escuro antes de o React montar. Intro.tsx remove a classe. -->
+    <style>html.intro-pending, html.intro-pending body, html.intro-pending .boot { background: #ddd7ce; }</style>
   </head>
   <body>
     <div id="root"></div>

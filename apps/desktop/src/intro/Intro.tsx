@@ -33,6 +33,8 @@ export function Intro({ canSkip, onDone }: Props) {
   const finish = useCallback(() => {
     if (done.current) return;
     done.current = true;
+    // Daqui em diante o fundo volta ao tema escuro do app (o fade de saída faz a transição).
+    document.documentElement.classList.remove("intro-pending");
     setLeaving(true);
     window.setTimeout(onDone, LEAVE_MS);
   }, [onDone]);
