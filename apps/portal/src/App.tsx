@@ -32,8 +32,8 @@ function AuthMessage({ title, children }: { title: string; children: React.React
 
 export function App() {
   const { loading, session, profile, operator, loadError, refresh, signOut, api } = useAuth();
-  // Só operadores têm solicitações: sem operador, o hook não consulta nada.
-  const requests = useMyRequests(api, operator ? session?.user.id ?? null : null);
+  // Só operadores têm solicitações; com a troca de senha pendente, nada é consultado (o banco também recusa).
+  const requests = useMyRequests(api, operator && !profile?.must_change_password ? session?.user.id ?? null : null);
   const newCount = requests.newCount;
   const path = usePath();
   const mainRef = useRef<HTMLElement>(null);
