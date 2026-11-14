@@ -25,11 +25,12 @@ jobs:
       - id: f
         uses: dorny/paths-filter@v3
         with:
+          # Mudar o próprio CI roda todas as áreas (senão a correção do workflow não é exercitada).
           filters: |
-            js: ['apps/portal/**', 'apps/desktop/src/**', 'packages/**', 'pnpm-lock.yaml']
-            db: ['supabase/**']
-            engine: ['services/engine/**', 'ialocal/manifest.json', 'packages/contracts/fixtures/**']
-            desktop: ['apps/desktop/**', 'packages/contracts/fixtures/**']
+            js: ['apps/portal/**', 'apps/desktop/src/**', 'packages/**', 'pnpm-lock.yaml', '.github/workflows/ci.yml']
+            db: ['supabase/**', '.github/workflows/ci.yml']
+            engine: ['services/engine/**', 'ialocal/manifest.json', 'packages/contracts/fixtures/**', '.github/workflows/ci.yml']
+            desktop: ['apps/desktop/**', 'packages/contracts/fixtures/**', '.github/workflows/ci.yml']
 
   frontend:
     needs: changes
@@ -62,8 +63,13 @@ jobs:
       - run: pnpm --filter @fic/supabase test
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
+      # Roda dentro de supabase/functions para o Deno usar o deno.json local ("nodeModulesDir": "none").
+      # Na raiz ele acha package.json + node_modules do pnpm, exige os pacotes npm lá e reescreve o package.json.
       - name: Type-check das Edge Functions
-        run: deno check supabase/functions/*/index.ts
+        working-directory: supabase/functions
+        run: deno check ./*/index.ts
+      - name: O type-check não alterou arquivos versionados
+        run: git diff --exit-code
 
   supabase-compat:
     # Aplica as migrations num Supabase local efêmero (pg_cron, pg_net, vault, realtime reais).

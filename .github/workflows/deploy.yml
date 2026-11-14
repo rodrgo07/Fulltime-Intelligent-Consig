@@ -1,15 +1,15 @@
 name: Deploy (portal e Supabase)
 
-# Portal: Cloudflare Pages a cada push em main que altere o portal.
-# Supabase (migrations + Edge Functions): manual, com aprovação no Environment "production".
+# O Environment "production" só aceita tags v* e exige aprovação (docs/UPDATE_SYSTEM.md).
+# Portal: Cloudflare Pages a cada tag vX.Y.Z (a mesma tag da release do desktop).
+# Supabase (migrations + Edge Functions): manual (Run workflow escolhendo a TAG em "Use workflow from").
 on:
   push:
-    branches: [main]
-    paths: ['apps/portal/**', 'packages/**']
+    tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
       target:
-        description: 'O que publicar'
+        description: 'O que publicar (execute a partir de uma tag v*)'
         type: choice
         options: [portal, supabase]
         default: portal
@@ -24,6 +24,22 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - name: Pré-condições (variáveis e secrets do Cloudflare/Supabase)
+        env:
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+          HAS_CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          HAS_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+        run: |
+          missing=""
+          for v in CLOUDFLARE_PAGES_PROJECT SUPABASE_URL SUPABASE_ANON_KEY; do
+            [ -n "${!v}" ] || missing="$missing var:$v"
+          done
+          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            h="HAS_$s"; [ "${!h}" = "true" ] || missing="$missing secret:$s"
+          done
+          [ -z "$missing" ] || { echo "::error::Configuração ausente no Environment production:$missing (PROMPT A9 / docs/SECURITY.md)"; exit 1; }
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -34,11 +50,14 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/portal/dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main
+      # wrangler via pnpm dlx (versão fixa): o cloudflare/wrangler-action tenta "pnpm add" na raiz do
+      # workspace e falha com ERR_PNPM_ADDING_TO_ROOT.
+      - name: Publicar no Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+        run: pnpm dlx wrangler@4.162.0 pages deploy apps/portal/dist --project-name="$PROJECT" --branch=main
 
   supabase:
     if: inputs.target == 'supabase'
@@ -47,8 +66,16 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
       PORTAL_URL: ${{ vars.PORTAL_URL }}
     steps:
+      - name: Pré-condições (secrets e variáveis do Supabase)
+        run: |
+          missing=""
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF PORTAL_URL; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          [ -z "$missing" ] || { echo "::error::Configuração ausente no Environment production:$missing (docs/SECURITY.md)"; exit 1; }
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -57,6 +84,6 @@ jobs:
       - run: pnpm --filter @fic/supabase test
       - uses: supabase/setup-cli@v1
         with: { version: latest }
-      - run: supabase link --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
+      - run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
       - run: supabase db push
-      - run: supabase functions deploy dispatch-notifications admin-invite --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
+      - run: supabase functions deploy dispatch-notifications admin-invite --project-ref "$SUPABASE_PROJECT_REF"
