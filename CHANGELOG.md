@@ -40,6 +40,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
   `svc_claim_notifications`/`svc_finish_notification` e `dispatch-notifications`.
 - Portal (Acessos): coluna “E-mail de notificação” passa a “E-mail” (não há mais aviso por e-mail). Desktop: o
   detalhe da solicitação não mostra mais o estado do “E-mail ao proprietário” e não depende de `notifications`.
+- Desktop (interface): sai a aba “IA local” das Configurações e os indicadores de IA e de Realtime do Painel e
+  do diagnóstico; a fila é acompanhada só pela consulta periódica. Cortes do MVP aprovados pelo usuário (a remoção
+  no Rust e no motor fica nos PRs do back-end).
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment
   `production` restrito a tags `v*` com aprovação. O deploy manual do Supabase deve ser disparado a partir de uma tag.
 - Tokens de cor ajustados para contraste AA nos dois temas (texto fraco, estados, bordas de campo) — teste de

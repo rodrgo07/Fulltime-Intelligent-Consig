@@ -103,7 +103,6 @@ export type WorkerStatus = {
   engine_version: string | null;
   workflow_ready: boolean;
   consig_session: string;
-  ai_state: string;
   supabase_reachable: boolean | null;
   last_cycle_at: number | null;
   last_error: string | null;
@@ -117,7 +116,6 @@ export type Dashboard = {
   counts: Record<RequestStatus, number>;
   storage: { database_bytes: number; limit_bytes: number; pii_rows: number; tables: Record<string, number> } | null;
   worker: WorkerStatus;
-  realtime_connected: boolean;
   recent_activity: { occurred_at: string; action: string; actor_role: string | null; request_id: string | null }[];
 };
 
@@ -138,7 +136,6 @@ export type AppConfig = {
   supabase_url: string; supabase_anon_key: string; consig_start_url: string; poll_interval_s: number;
   log_level: "DEBUG" | "INFO" | "WARNING" | "ERROR"; autostart: boolean; start_minimized: boolean; intro_seen: boolean;
   session_max_hours: number; worker_paused: boolean;
-  ai: { enabled: boolean; model: string | null; timeout_s: number; min_free_ram_mb: number; max_cpu_percent: number; min_confidence: number };
 };
 
 export type AppInfo = { version: string; channel: string; identifier: string; data_dir: string; log_dir: string; intro_seen: boolean };
