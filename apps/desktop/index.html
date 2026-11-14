@@ -6,7 +6,12 @@
     <title>Fulltime Intelligent Consig</title>
     <!-- Até a intro começar a sair, o fundo é o mesmo da borda do vídeo (#ddd7ce, igual ao backgroundColor da
          janela no tauri.conf.json): sem lampejo escuro antes de o React montar. Intro.tsx remove a classe. -->
-    <style>html.intro-pending, html.intro-pending body, html.intro-pending .boot { background: #ddd7ce; }</style>
+    <style>
+      html.intro-pending, html.intro-pending body, html.intro-pending .boot { background: #ddd7ce; }
+      /* "Iniciando…" sobre o bege: texto e spinner escuros (contraste AA). */
+      html.intro-pending .state-loading { color: #3f4246; }
+      html.intro-pending .spinner { border-color: #8a8e94; border-top-color: #111213; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
