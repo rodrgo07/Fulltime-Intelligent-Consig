@@ -37,6 +37,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - Tokens de cor ajustados para contraste AA nos dois temas (texto fraco, estados, bordas de campo) — teste de
   contraste lê o `tokens.css` real. Foco dos campos com contorno de 2 px.
 - Portal no celular: navegação em linha própria (sem rolagem horizontal) e motivo do estado sob o status.
+- Desktop: a introdução passa a ser o vídeo oficial (`public/intro.mp4`, logos Full Time → banco bmg) em tela
+  cheia, sem faixa de logos por cima, seguido do nome “Fulltime Intelligent Consig” por 1,6 s (gatilho: evento
+  `ended`, com timeout de segurança). Mantidos: pular com Esc/Enter/Espaço a partir da 2ª execução e modo de
+  movimento reduzido (só o nome). Removido o fundo antigo `intro-bg.mp4`.
 
 ### Corrigido
 - CI: `deno check` das Edge Functions roda dentro de `supabase/functions` (usa o `deno.json` local); na raiz o
@@ -55,7 +59,6 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - Portal: falha de rede ao carregar o perfil não aparece mais como “Acesso não liberado”; “Minhas solicitações”
   não fica preso em “Carregando…” quando a primeira carga falha; falha de rede no convite vira `NETWORK`.
 - Desktop: falhas de `app_info`/`auth_status` não deixam mais a tela em branco.
-
 
 ## [0.1.0] — 2026-11-12 — Fase 1: infraestrutura
 
