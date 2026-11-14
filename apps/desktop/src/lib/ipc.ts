@@ -117,7 +117,6 @@ export type Dashboard = {
   counts: Record<RequestStatus, number>;
   storage: { database_bytes: number; limit_bytes: number; pii_rows: number; tables: Record<string, number> } | null;
   worker: WorkerStatus;
-  realtime_connected: boolean;
   recent_activity: { occurred_at: string; action: string; actor_role: string | null; request_id: string | null }[];
 };
 

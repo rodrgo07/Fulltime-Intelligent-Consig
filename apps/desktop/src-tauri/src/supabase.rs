@@ -74,14 +74,6 @@ impl Supabase {
         Ok(Self { http, url: url.trim_end_matches('/').to_string(), anon: anon.to_string() })
     }
 
-    pub fn base_url(&self) -> &str {
-        &self.url
-    }
-
-    pub fn anon_key(&self) -> &str {
-        &self.anon
-    }
-
     async fn parse<T: DeserializeOwned>(res: reqwest::Response) -> AppResult<T> {
         let status = res.status();
         if status.is_success() {
