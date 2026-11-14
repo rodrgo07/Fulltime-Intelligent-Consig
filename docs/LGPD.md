@@ -9,7 +9,7 @@
 - **Controlador**: definir se é a Fulltime (correspondente) e/ou o Banco BMG para cada finalidade. A relação
   com o banco e com os clientes determina papéis e responsabilidades.
 - **Operadores (LGPD)**: Supabase (banco/autenticação/hospedagem), Cloudflare (hospedagem do portal),
-  Resend (envio de e-mail), GitHub (código e distribuição do app). Exigir contratos/DPAs e verificar
+  Resend (SMTP do Auth: convite e recuperação de senha), GitHub (código e distribuição do app). Exigir contratos/DPAs e verificar
   transferência internacional (art. 33) — os provedores podem armazenar dados fora do Brasil; escolher região
   do projeto Supabase compatível.
 - **Região do Supabase (decisão de 2026-11-13)**: o projeto de produção `qqgzbuaizprpmjeozzis` fica em
@@ -49,13 +49,14 @@ incapacidade — aplicar o art. 11 e reavaliar todo o fluxo.
 | Histórico do `pg_cron` | 7 dias | job diário |
 | Perfil do Chrome do backoffice | enquanto instalado | contém cookies/sessão do Consig; **definir rotina de limpeza** [VALIDAR] |
 
-O e-mail ao operador contém só: referência, número de adesão, status e data/hora.
+Não há e-mail de resultado: o e-mail do operador não é usado para avisos. A proposta gerada aparece só no portal
+(referência, número de adesão, status e data/hora), para o remetente e o proprietário, via RLS.
 
 ### Limitações da exclusão (transparência)
 
 Excluir uma linha **não** apaga imediatamente: backups diários do Supabase (retidos conforme o plano), WAL e
 réplicas de recuperação, logs do provedor (API/Postgres, que podem registrar parâmetros de chamadas RPC),
-caches de e-mail do provedor, e telas/cache do Chrome no PC do backoffice. Esses dados expiram pelos ciclos do
+e telas/cache do Chrome no PC do backoffice. Esses dados expiram pelos ciclos do
 provedor (consultar a política vigente do plano contratado). Mitigações: dados em texto puro **apenas** em
 `clients_temp`; não registrar payload em logs próprios; preferir região e plano com retenção de backup conhecida.
 

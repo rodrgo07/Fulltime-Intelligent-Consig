@@ -16,7 +16,7 @@
 | Abuso/automação no portal | rate limit no banco (10/min, 300/dia por operador), cadastro aberto desligado |
 | Roubo de sessão do backoffice | MFA TOTP obrigatório (aal2), refresh token no Credential Manager (DPAPI), validade máxima configurável (24 h) |
 | Vazamento da service_role | só existe nas Edge Functions (secret do Supabase). Desktop **só aceita** `sb_publishable_…` ou o JWT `anon` legado: `sb_secret_`/`service_role` dão `SERVICE_ROLE_FORBIDDEN` (na configuração e de novo ao montar o cliente HTTP, cobrindo `config.json` editado à mão); outros formatos dão `INVALID_ANON_KEY` |
-| Edge Function chamada sem usuário | `admin-invite` com `verify_jwt = false` (o check do gateway não é confiável com as chaves novas) e validação no código: exige `Authorization: Bearer <JWT>`, recusa chaves `sb_` ali, `assert_admin` valida a assinatura no PostgREST e `auth.getUser` confirma o usuário. `dispatch-notifications`: `x-cron-secret` |
+| Edge Function chamada sem usuário | `admin-invite` com `verify_jwt = false` (o check do gateway não é confiável com as chaves novas) e validação no código: exige `Authorization: Bearer <JWT>`, recusa chaves `sb_` ali, `assert_admin` valida a assinatura no PostgREST e `auth.getUser` confirma o usuário |
 | RPC `security definer` executável por `authenticated` (advisor `authenticated_security_definer_function_executable`) | **aceito**: as funções de `public` concedidas a `authenticated` (migration `…0003`) são a superfície da API; cada uma valida o papel e o MFA por dentro (`private.require_role`) e aplica as regras de negócio. `assert_admin()` também é exposta de propósito: o `admin-invite` a chama com o JWT do usuário para que o PostgREST valide a assinatura e o banco confira papel + aal2; ela não lê nem grava nada. Funções `svc_*` só para `service_role`; helpers internos ficam em `private` |
 | Tabela sem política (advisor `rls_enabled_no_policy` em `clients_temp`) | **intencional**: RLS ligado e nenhuma política = inacessível pela API; os dados pessoais só passam por funções controladas |
 | XSS no portal | React (escape), CSP `script-src 'self'`, sem `dangerouslySetInnerHTML`, `object-src 'none'` |
@@ -35,8 +35,7 @@
 | Segredo | Onde fica | Nunca |
 |---|---|---|
 | Chave de servidor (`sb_secret_…`; legada `service_role`) | injetada pelo Supabase nas Edge Functions (`SUPABASE_SECRET_KEYS`, JSON por nome, `default`; alternativa `SUPABASE_SERVICE_ROLE_KEY`) — nunca configurar à mão | portal, desktop, repositório |
-| `RESEND_API_KEY`, `MAIL_FROM`, `CRON_SECRET`, `PORTAL_URL` | `supabase secrets set` | repositório |
-| `fic_functions_url`, `fic_cron_secret` | Supabase Vault (o valor de `fic_cron_secret` é o mesmo do secret `CRON_SECRET`; gerar e gravar os dois no mesmo comando, sem imprimir) | migrations |
+| `PORTAL_URL` (usado pelo `admin-invite`) | `supabase secrets set` | repositório |
 | Chave privada de assinatura (`TAURI_SIGNING_PRIVATE_KEY` + senha) | GitHub Actions secrets | máquinas de operadores, repositório |
 | `CLOUDFLARE_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` | GitHub Environment `production` | repositório |
 | Refresh token do backoffice | Windows Credential Manager | arquivos de configuração |
@@ -66,7 +65,7 @@ seletor ou detalhe operacional sensível do Consig no código; o endereço do Co
 ## Resposta a incidentes (técnico)
 
 1. Desativar acessos afetados (`admin_set_member_active` revoga sessões).
-2. Pausar a fila no desktop; se necessário, rotacionar chave anon/JWT secret no Supabase e `CRON_SECRET`.
+2. Pausar a fila no desktop; se necessário, rotacionar chave anon/JWT secret no Supabase.
 3. Exportar `audit_logs` e logs do desktop do período.
 4. Seguir o procedimento LGPD de incidentes (`LGPD.md`).
 

@@ -11,8 +11,8 @@ portal, motor RPA (estrutura), IA local sob demanda, app desktop, intro, CI/CD e
 |---|---|---|
 | Projeto Supabase criado | uso real de tudo | criar projeto (região BR se possível); informar URL e anon key; `supabase link` + `db push` |
 | Bootstrap de admin/backoffice | login | ver `DATABASE_SCHEMA.md#primeiro-acesso-bootstrap` |
-| Segredos das Edge Functions e Vault | e-mail | `RESEND_API_KEY`, `MAIL_FROM`, `CRON_SECRET`, `PORTAL_URL`; secrets do Vault |
-| Domínio verificado no Resend | e-mail | DNS (SPF/DKIM) |
+| Segredo da Edge Function de convite | convite | `PORTAL_URL` |
+| Domínio verificado no Resend | SMTP do Auth (convite, recuperação) | DNS (SPF/DKIM/DMARC) |
 | Cloudflare Pages | portal publicado | projeto + token + variáveis no GitHub |
 | Repositório GitHub + chaves do updater | releases | `UPDATE_SYSTEM.md` |
 | Google Chrome no PC do backoffice | RPA | instalar |
@@ -36,7 +36,7 @@ portal, motor RPA (estrutura), IA local sob demanda, app desktop, intro, CI/CD e
 ## Fase 4 — Evoluções previstas
 
 - Liberar proprietário ≠ remetente: trocar a verificação `OWNER_NOT_ALLOWED` em `submit_proposal_request`
-  por “proprietário é operador ativo” + seletor no portal (colunas e e-mail já usam o proprietário).
+  por “proprietário é operador ativo” + seletor no portal (as colunas já usam o proprietário).
 - Tipos gerados (`supabase gen types`) no portal/desktop.
 - Painel de uso de armazenamento com histórico; alertas a 80%.
 - Assinatura Authenticode do instalador.
