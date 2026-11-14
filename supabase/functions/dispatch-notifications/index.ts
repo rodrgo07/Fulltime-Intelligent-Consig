@@ -1,12 +1,15 @@
 // Chamada pelo pg_cron (via pg_net) somente quando há notificações vencidas.
-// Secrets necessários: CRON_SECRET, RESEND_API_KEY, MAIL_FROM. SUPABASE_URL e
-// SUPABASE_SERVICE_ROLE_KEY são injetados pelo próprio Supabase e nunca saem do servidor.
+// Secrets necessários: CRON_SECRET, RESEND_API_KEY, MAIL_FROM. SUPABASE_URL e a chave de servidor
+// (SUPABASE_SECRET_KEYS, com SUPABASE_SERVICE_ROLE_KEY como alternativa legada) são injetados pelo
+// próprio Supabase e nunca saem do servidor. verify_jwt = false: protegida por x-cron-secret.
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { dispatchNotifications } from "../_shared/dispatch.ts";
 import { json, safeEqual } from "../_shared/http.ts";
+import { serverKey } from "../_shared/keys.ts";
 
+const get = (k: string) => Deno.env.get(k);
 const env = (k: string) => {
-  const v = Deno.env.get(k);
+  const v = get(k);
   if (!v) throw new Error(`missing env ${k}`);
   return v;
 };
@@ -16,7 +19,7 @@ Deno.serve(async (req) => {
   if (!safeEqual(req.headers.get("x-cron-secret") ?? "", env("CRON_SECRET"))) {
     return json(401, { code: "UNAUTHORIZED" });
   }
-  const sb = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
+  const sb = createClient(env("SUPABASE_URL"), serverKey(get), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   try {

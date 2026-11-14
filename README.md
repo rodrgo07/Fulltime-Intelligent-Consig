@@ -52,6 +52,6 @@ pnpm --filter @fic/desktop tauri dev                          # app desktop
 3. Segredos do Vault e bootstrap do primeiro admin/backoffice — `docs/DATABASE_SCHEMA.md`.
 4. Publicar o portal (Cloudflare Pages) com `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — automático a cada
    tag `vX.Y.Z` (`.github/workflows/deploy.yml`, com aprovação no Environment `production`).
-5. Instalar o app no PC do backoffice, informar URL + chave pública (anon), entrar com MFA.
+5. Instalar o app no PC do backoffice, informar URL + chave pública (`sb_publishable_…` ou anon legada), entrar com MFA.
 
-Nunca use a chave `service_role` no portal ou no desktop — o app a recusa.
+Nunca use a chave `sb_secret_`/`service_role` no portal ou no desktop — o app a recusa.

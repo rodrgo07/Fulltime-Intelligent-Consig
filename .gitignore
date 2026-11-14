@@ -20,3 +20,4 @@ coverage/
 *.log
 # estado local do Supabase CLI (link do projeto, versões)
 supabase/.temp/
+supabase/.branches/

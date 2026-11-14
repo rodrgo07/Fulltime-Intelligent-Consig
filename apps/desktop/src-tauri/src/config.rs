@@ -77,10 +77,7 @@ impl AppConfig {
             if !looks_like_key {
                 return Err(AppError::Code("INVALID_ANON_KEY"));
             }
-            if self.supabase_anon_key.starts_with("sb_secret_") || jwt_role(&self.supabase_anon_key).as_deref() == Some("service_role") {
-                // Nunca aceitar a service_role em um aplicativo distribuído.
-                return Err(AppError::Code("SERVICE_ROLE_FORBIDDEN"));
-            }
+            check_public_key(&self.supabase_anon_key)?;
         }
         if !self.consig_start_url.is_empty() && !self.consig_start_url.starts_with("https://") {
             return Err(AppError::Code("INVALID_CONSIG_URL"));
@@ -116,6 +113,23 @@ pub fn mask(s: &str) -> String {
     }
     let tail: String = s.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
     format!("••••••••{tail}")
+}
+
+/// Só chaves públicas entram no app: `sb_publishable_…` (chave nova) ou o JWT legado com papel `anon`.
+/// `sb_secret_…` e o JWT `service_role` dão SERVICE_ROLE_FORBIDDEN; qualquer outra coisa (outros
+/// subtipos `sb_`, JWT de usuário, texto solto) dá INVALID_ANON_KEY.
+pub fn check_public_key(key: &str) -> AppResult<()> {
+    let role = jwt_role(key);
+    if key.starts_with("sb_secret_") || role.as_deref() == Some("service_role") {
+        // Nunca aceitar a service_role em um aplicativo distribuído.
+        return Err(AppError::Code("SERVICE_ROLE_FORBIDDEN"));
+    }
+    let publishable = key.len() > "sb_publishable_".len() && key.starts_with("sb_publishable_");
+    if publishable || role.as_deref() == Some("anon") {
+        Ok(())
+    } else {
+        Err(AppError::Code("INVALID_ANON_KEY"))
+    }
 }
 
 /// Papel declarado num JWT do Supabase (sem validar assinatura; só para bloquear service_role).
@@ -175,6 +189,24 @@ mod tests {
         assert_eq!(c.validate().unwrap_err().code(), "SERVICE_ROLE_FORBIDDEN");
         c.supabase_anon_key = jwt("anon");
         assert!(c.validate().is_ok());
+    }
+
+    #[test]
+    fn accepts_only_public_keys() {
+        let mut c = AppConfig { supabase_url: "https://abc.supabase.co".into(), ..Default::default() };
+        // Chave nova publicável (valor fictício).
+        c.supabase_anon_key = "sb_publishable_FAKE0000000000000000_abcdEFGH".into();
+        assert!(c.validate().is_ok());
+        // Chave secreta nova, inclusive nomeada, e o JWT legado service_role.
+        for k in ["sb_secret_FAKE0000000000000000_abcdEFGH".to_string(), jwt("service_role")] {
+            c.supabase_anon_key = k;
+            assert_eq!(c.validate().unwrap_err().code(), "SERVICE_ROLE_FORBIDDEN");
+        }
+        // Prefixo sem corpo, subtipo desconhecido, JWT de usuário e texto qualquer.
+        for k in ["sb_publishable_".to_string(), "sb_temp_abc".into(), jwt("authenticated"), "qualquer-coisa".into()] {
+            c.supabase_anon_key = k;
+            assert_eq!(c.validate().unwrap_err().code(), "INVALID_ANON_KEY");
+        }
     }
 
     #[test]

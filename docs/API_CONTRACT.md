@@ -8,7 +8,10 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 ## 1. Convenções
 
 - Transporte externo: HTTPS (PostgREST/Auth/Edge Functions do Supabase). Interno: JSON-RPC 2.0 por stdio.
-- Autenticação: JWT do Supabase Auth no header `Authorization: Bearer`, mais `apikey` (chave pública).
+- Autenticação: JWT do Supabase Auth no header `Authorization: Bearer`, mais `apikey` (chave pública:
+  `sb_publishable_…` ou a `anon` legada). Chaves de API (`sb_…`) nunca vão no `Authorization`; o supabase-js ≥ 2.119
+  já faz isso sozinho. Realtime: chave pública no parâmetro `apikey` da URL e JWT do usuário no `access_token` do
+  `phx_join` (é ele que aplica o RLS); a inscrição só vale após o evento `system` "Subscribed to PostgreSQL".
 - Erros de negócio: `SQLSTATE P0001` com `message` = **código estável** (`RATE_LIMITED`, `PAYLOAD_INVALID`…) e
   `details` opcional. Interfaces mapeiam o código para mensagens (`ERROR_MESSAGE` em `@fic/contracts`).
 - Nenhum dado pessoal em URL, query string, log ou e-mail. IDs técnicos são UUID; a referência exibida
@@ -40,7 +43,7 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 
 | Chamada | Entrada | Observação |
 |---|---|---|
-| `POST functions/v1/admin-invite` | `{email, display_name, role}` | 201 `{profile_id, operator_code}`; 403 `FORBIDDEN/MFA_REQUIRED`; 409 `ALREADY_REGISTERED`; 422 `INVALID_INPUT` |
+| `POST functions/v1/admin-invite` | `{email, display_name, role}` | 201 `{profile_id, operator_code}`; 401 `UNAUTHENTICATED` (sem JWT de usuário, JWT inválido/expirado ou chave de API no `Authorization`); 403 `FORBIDDEN/MFA_REQUIRED`; 409 `ALREADY_REGISTERED`; 422 `INVALID_INPUT`. `verify_jwt = false`: a função valida o JWT (PostgREST + Auth) |
 | `rpc/admin_set_member_active` | `p_profile_id`, `p_active` | desativar revoga refresh tokens; acesso barrado imediatamente nas RPCs |
 | `profiles?select=…,operators(…)` | — | listagem de membros |
 

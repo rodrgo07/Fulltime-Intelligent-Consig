@@ -1,5 +1,6 @@
 //! Cliente HTTP do Supabase (Auth + PostgREST) usado SOMENTE pelo processo nativo.
-//! Usa a chave pública (anon) e o JWT do usuário backoffice; a service_role nunca existe aqui.
+//! Usa a chave pública (sb_publishable_ ou anon legada) e o JWT do usuário backoffice;
+//! a service_role / sb_secret_ nunca existe aqui (Supabase::new recusa).
 
 use crate::error::{AppError, AppResult};
 use serde::de::DeserializeOwned;
@@ -62,6 +63,8 @@ pub fn jwt_claim(token: &str, claim: &str) -> Option<String> {
 
 impl Supabase {
     pub fn new(url: &str, anon: &str) -> AppResult<Self> {
+        // Segunda barreira: config.json editado à mão não passa por AppConfig::validate.
+        crate::config::check_public_key(anon)?;
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
@@ -172,5 +175,17 @@ impl Supabase {
     pub async fn ping(&self) -> bool {
         self.http.get(format!("{}/auth/v1/health", self.url)).header("apikey", &self.anon)
             .timeout(Duration::from_secs(8)).send().await.map(|r| r.status().is_success()).unwrap_or(false)
+    }
+}
+
+#[cfg(test)]
+mod key_tests {
+    use super::*;
+
+    #[test]
+    fn client_refuses_secret_keys_even_without_config_validation() {
+        let err = Supabase::new("https://abc.supabase.co", "sb_secret_FAKE0000000000000000_abcd").err().unwrap();
+        assert_eq!(err.code(), "SERVICE_ROLE_FORBIDDEN");
+        assert!(Supabase::new("https://abc.supabase.co", "sb_publishable_FAKE0000000000000000_abcd").is_ok());
     }
 }

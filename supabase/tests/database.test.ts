@@ -174,6 +174,18 @@ describe("isolamento e privilégios", () => {
     expect(unsafe.rows).toEqual([]);
   });
 
+  it("chave de servidor (service_role) escreve direto passando pelas validações; anon segue sem acesso a private", async () => {
+    const fields = JSON.stringify([{ key: "campo_teste", label: "Campo", type: "text" }]);
+    await as(db, { role: "service_role" }, (tx) =>
+      tx.query("insert into public.form_definitions (version, title, fields) values (8, 'Homologação fictícia', $1)", [fields]));
+    expect(await errorCode(as(db, { role: "service_role" }, (tx) =>
+      tx.query("insert into public.form_definitions (version, title, fields) values (7, 'x', $1)",
+        [JSON.stringify([{ key: "A", label: "", type: "foo" }])])))).toBe("FORM_DEFINITION_INVALID");
+    const usage = await one<{ anon: boolean; svc: boolean }>(
+      "select has_schema_privilege('anon', 'private', 'usage') anon, has_schema_privilege('service_role', 'private', 'usage') svc");
+    expect(usage).toEqual({ anon: false, svc: true });
+  });
+
   it("definição de formulário inválida é recusada", async () => {
     expect(await errorCode(db.query(
       "insert into public.form_definitions (version, title, fields) values (9, 'x', $1)",

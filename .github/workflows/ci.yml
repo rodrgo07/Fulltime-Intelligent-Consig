@@ -85,6 +85,9 @@ jobs:
       - run: supabase db start
         working-directory: .
       - run: supabase db lint --level error
+      # pg_cron (4 jobs), pg_net fora de public, vault, publicação do Realtime e privilégios dos papéis da API.
+      - name: Verificação de compatibilidade
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/compat/verify.sql
       - run: supabase stop --no-backup
 
   engine:
