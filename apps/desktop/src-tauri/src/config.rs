@@ -77,10 +77,7 @@ impl AppConfig {
             if !looks_like_key {
                 return Err(AppError::Code("INVALID_ANON_KEY"));
             }
-            if self.supabase_anon_key.starts_with("sb_secret_") || jwt_role(&self.supabase_anon_key).as_deref() == Some("service_role") {
-                // Nunca aceitar a service_role em um aplicativo distribuído.
-                return Err(AppError::Code("SERVICE_ROLE_FORBIDDEN"));
-            }
+            check_public_key(&self.supabase_anon_key)?;
         }
         if !self.consig_start_url.is_empty() && !self.consig_start_url.starts_with("https://") {
             return Err(AppError::Code("INVALID_CONSIG_URL"));
@@ -118,6 +115,23 @@ pub fn mask(s: &str) -> String {
     format!("••••••••{tail}")
 }
 
+/// Só chaves públicas entram no app: `sb_publishable_…` (chave nova) ou o JWT legado com papel `anon`.
+/// `sb_secret_…` e o JWT `service_role` dão SERVICE_ROLE_FORBIDDEN; qualquer outra coisa (outros
+/// subtipos `sb_`, JWT de usuário, texto solto) dá INVALID_ANON_KEY.
+pub fn check_public_key(key: &str) -> AppResult<()> {
+    let role = jwt_role(key);
+    if key.starts_with("sb_secret_") || role.as_deref() == Some("service_role") {
+        // Nunca aceitar a service_role em um aplicativo distribuído.
+        return Err(AppError::Code("SERVICE_ROLE_FORBIDDEN"));
+    }
+    let publishable = key.len() > "sb_publishable_".len() && key.starts_with("sb_publishable_");
+    if publishable || role.as_deref() == Some("anon") {
+        Ok(())
+    } else {
+        Err(AppError::Code("INVALID_ANON_KEY"))
+    }
+}
+
 /// Papel declarado num JWT do Supabase (sem validar assinatura; só para bloquear service_role).
 pub fn jwt_role(token: &str) -> Option<String> {
     use base64::Engine;
@@ -136,11 +150,20 @@ impl ConfigStore {
         Self { path: dir.join("config.json") }
     }
 
+    /// Lê a configuração do disco. Uma chave Supabase que não seja pública (ex.: `sb_secret_`/`service_role`
+    /// colocada à mão no `config.json`) é descartada: o app fica "não configurado" e pede a chave de novo.
     pub fn load(&self) -> AppConfig {
-        std::fs::read(&self.path)
+        let mut cfg: AppConfig = std::fs::read(&self.path)
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        if !cfg.supabase_anon_key.is_empty() {
+            if let Err(e) = check_public_key(&cfg.supabase_anon_key) {
+                tracing::warn!(code = %e.code(), "chave Supabase do config.json recusada; configure a chave pública de novo");
+                cfg.supabase_anon_key.clear();
+            }
+        }
+        cfg
     }
 
     /// Escrita atômica (arquivo temporário + rename).
@@ -178,6 +201,24 @@ mod tests {
     }
 
     #[test]
+    fn accepts_only_public_keys() {
+        let mut c = AppConfig { supabase_url: "https://abc.supabase.co".into(), ..Default::default() };
+        // Chave nova publicável (valor fictício).
+        c.supabase_anon_key = "sb_publishable_FAKE0000000000000000_abcdEFGH".into();
+        assert!(c.validate().is_ok());
+        // Chave secreta nova, inclusive nomeada, e o JWT legado service_role.
+        for k in ["sb_secret_FAKE0000000000000000_abcdEFGH".to_string(), jwt("service_role")] {
+            c.supabase_anon_key = k;
+            assert_eq!(c.validate().unwrap_err().code(), "SERVICE_ROLE_FORBIDDEN");
+        }
+        // Prefixo sem corpo, subtipo desconhecido, JWT de usuário e texto qualquer.
+        for k in ["sb_publishable_".to_string(), "sb_temp_abc".into(), jwt("authenticated"), "qualquer-coisa".into()] {
+            c.supabase_anon_key = k;
+            assert_eq!(c.validate().unwrap_err().code(), "INVALID_ANON_KEY");
+        }
+    }
+
+    #[test]
     fn rejects_insecure_urls() {
         let c = AppConfig { supabase_url: "http://abc.supabase.co".into(), ..Default::default() };
         assert!(c.validate().is_err());
@@ -194,6 +235,25 @@ mod tests {
         assert_eq!(mask("abcdefghij"), "••••••••ghij");
         let c = AppConfig { supabase_anon_key: "segredo-1234".into(), ..Default::default() };
         assert_eq!(c.masked()["supabase_anon_key"], "••••••••1234");
+    }
+
+    #[test]
+    fn load_discards_forbidden_key_written_by_hand() {
+        let dir = std::env::temp_dir().join(format!("fic-cfg-load-discard-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = ConfigStore::new(&dir);
+        for k in ["sb_secret_FAKE0000000000000000_abcd".to_string(), jwt("service_role"), "lixo".into()] {
+            let raw = serde_json::json!({ "supabase_url": "https://abc.supabase.co", "supabase_anon_key": k, "poll_interval_s": 45 });
+            std::fs::write(dir.join("config.json"), raw.to_string()).unwrap();
+            let c = store.load();
+            assert!(c.supabase_anon_key.is_empty());
+            assert!(!c.supabase_configured());
+            assert_eq!(c.poll_interval_s, 45); // demais campos preservados
+        }
+        let raw = serde_json::json!({ "supabase_url": "https://abc.supabase.co", "supabase_anon_key": "sb_publishable_FAKE0000_abcd" });
+        std::fs::write(dir.join("config.json"), raw.to_string()).unwrap();
+        assert!(store.load().supabase_configured());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

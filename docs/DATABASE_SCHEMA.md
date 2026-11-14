@@ -30,6 +30,20 @@ criar outra). Testes: `pnpm --filter @fic/supabase test` (Postgres real em PGlit
 - Trigger `proposal_requests_guard`: só transições válidas.
 - Trigger `form_definitions_guard`: definição de campos válida.
 - Nenhuma função executável por `anon`; toda `security definer` fixa `search_path` (teste automatizado).
+- `service_role` (chave `sb_secret_`) tem `USAGE` em `private` e `EXECUTE` nas funções de lá (migration `…0005`),
+  para que escritas diretas dela passem pelos triggers/defaults (ex.: formulário fictício de homologação).
+  `anon`/`authenticated` não ganham nada novo.
+- Políticas RLS usam `(select auth.uid())` e `(select private.is_staff())` (avaliados uma vez por consulta).
+
+### Compatibilidade com o Supabase real
+
+`supabase/tests/compat/verify.sql` roda no job `supabase-compat` do CI depois de `supabase db start` e falha se
+faltar algo que o PGlite não reproduz: `pg_cron` com os 4 jobs, `pg_net` fora de `public` (a `…0005` o move para
+`extensions`), `net.http_post` com a assinatura usada, leitura do Vault pelo `postgres`, `proposal_requests` na
+publicação `supabase_realtime`, privilégios de `anon`/`authenticated`/`service_role` e RLS em todas as tabelas.
+`supabase/tests/smoke/new-keys.mjs` (`pnpm --filter @fic/supabase smoke:local`) testa num Supabase **local**
+completo as chaves novas: RPC com publishable + JWT, recusa do anônimo, Realtime como o desktop faz, convite e
+dispatch.
 
 ## Configurações (`app_settings`)
 

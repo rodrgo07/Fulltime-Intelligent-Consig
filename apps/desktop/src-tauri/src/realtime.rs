@@ -9,9 +9,12 @@ use std::time::Duration;
 use tokio::sync::Notify;
 use tokio_tungstenite::tungstenite::Message;
 
-pub fn socket_url(base: &str, anon: &str) -> String {
+/// `apikey` = chave pública (sb_publishable_ ou anon legada), como o realtime-js faz; o JWT do usuário
+/// vai no `access_token` do phx_join, e é ele que aplica o RLS aos eventos.
+pub fn socket_url(base: &str, public_key: &str) -> String {
     let ws = base.replacen("https://", "wss://", 1).replacen("http://", "ws://", 1);
-    format!("{ws}/realtime/v1/websocket?apikey={anon}&vsn=1.0.0")
+    let key: String = url::form_urlencoded::byte_serialize(public_key.as_bytes()).collect();
+    format!("{ws}/realtime/v1/websocket?apikey={key}&vsn=1.0.0")
 }
 
 pub fn join_message(access_token: &str) -> Value {
@@ -69,6 +72,9 @@ mod tests {
     #[test]
     fn builds_secure_socket_url_and_join() {
         assert_eq!(socket_url("https://abc.supabase.co", "k"), "wss://abc.supabase.co/realtime/v1/websocket?apikey=k&vsn=1.0.0");
+        let k = "sb_publishable_FAKE0000_abc-DEF";
+        assert_eq!(socket_url("https://abc.supabase.co", k), format!("wss://abc.supabase.co/realtime/v1/websocket?apikey={k}&vsn=1.0.0"));
+        assert_eq!(socket_url("http://127.0.0.1:54321", "a+b/c="), "ws://127.0.0.1:54321/realtime/v1/websocket?apikey=a%2Bb%2Fc%3D&vsn=1.0.0");
         let j = join_message("tok");
         assert_eq!(j["payload"]["config"]["postgres_changes"][0]["table"], "proposal_requests");
         assert_eq!(j["payload"]["access_token"], "tok");

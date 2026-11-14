@@ -18,6 +18,8 @@ export function parseInvite(body: unknown): { ok: true; value: InviteInput } | {
 
 type Err = { message: string } | null;
 export type InviteDeps = {
+  /** JWT do usuário que chamou (ver keys.ts#bearerJwt). Sem ele, nada é consultado. */
+  callerToken: string | null;
   assertAdmin: () => Promise<{ error: Err }>;
   callerId: () => Promise<string | null>;
   inviteUser: (email: string, redirectTo: string) => Promise<{ userId: string | null; error: Err }>;
@@ -26,11 +28,20 @@ export type InviteDeps = {
 };
 
 export async function handleInvite(deps: InviteDeps, body: unknown): Promise<{ status: number; body: unknown }> {
+  // verify_jwt fica desligado (incompatível com as chaves novas): a autenticação é feita aqui.
+  if (!deps.callerToken) return { status: 401, body: { code: "UNAUTHENTICATED" } };
   const auth = await deps.assertAdmin();
-  if (auth.error) return { status: 403, body: { code: auth.error.message || "FORBIDDEN" } };
+  if (auth.error) {
+    // Códigos estáveis vêm de private.require_role; qualquer outra coisa (JWT inválido/expirado,
+    // papel anon) é tratada como não autenticado, sem repassar a mensagem interna.
+    const msg = auth.error.message ?? "";
+    if (/^[A-Z][A-Z0-9_]*$/.test(msg) && msg !== "UNAUTHENTICATED") return { status: 403, body: { code: msg } };
+    return { status: 401, body: { code: "UNAUTHENTICATED" } };
+  }
   const parsed = parseInvite(body);
   if (!parsed.ok) return { status: 422, body: { code: "INVALID_INPUT", fields: parsed.errors } };
   const caller = await deps.callerId();
+  if (!caller) return { status: 401, body: { code: "UNAUTHENTICATED" } };
   const inv = await deps.inviteUser(parsed.value.email, deps.redirectTo);
   if (inv.error || !inv.userId) {
     const exists = /already|registered|exists/i.test(inv.error?.message ?? "");

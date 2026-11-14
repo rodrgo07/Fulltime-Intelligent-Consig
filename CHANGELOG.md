@@ -11,12 +11,21 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
   `ERR_PNPM_ADDING_TO_ROOT`); pré-condições listam variáveis e secrets ausentes.
 - `supabase/config.toml`: removido `auth.email.enable_signup = false`, que no CLI v3 vira `auth.email.enabled = false`
   e desligaria o login por e-mail; cadastro aberto segue bloqueado por `auth.enable_signup = false`.
+- Edge Functions compatíveis com as chaves novas: leem `SUPABASE_SECRET_KEYS`/`SUPABASE_PUBLISHABLE_KEYS`
+  (fallback para as legadas); `admin-invite` com `verify_jwt = false` e validação do JWT no código (401
+  `UNAUTHENTICATED`); CORS libera `x-client-info` e demais cabeçalhos do supabase-js (o preflight do portal falhava).
+- Desktop: aceita só chave publishable/anon, recusa `sb_secret_`/`service_role` também ao montar o cliente HTTP;
+  `apikey` do Realtime codificado na URL.
+- Migration `…0005`: `pg_net` em `extensions` (advisor `extension_in_public`), índices das FKs, RLS com
+  `(select auth.uid())`, `service_role` com acesso a `private`.
 
 ### Adicionado
 - Templates de e-mail do Auth em PT-BR (convite e recuperação) em `supabase/templates/`; aplicados após o SMTP
   próprio (Resend), exigido pelo Supabase no plano free.
 - Teste de regressão do `config.toml` (`supabase/tests/config.test.ts`).
 - Documentação: projeto Supabase em us-east-1 (transferência internacional, `LGPD.md`/`SECURITY.md`).
+- Verificação de compatibilidade (`supabase/tests/compat/verify.sql`) no job `supabase-compat` do CI e smoke test
+  local das chaves novas (`supabase/tests/smoke/new-keys.mjs`).
 
 ### Alterado
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment

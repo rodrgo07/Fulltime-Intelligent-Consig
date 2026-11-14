@@ -284,6 +284,9 @@ importers:
       '@electric-sql/pglite':
         specifier: 0.5.16
         version: 0.5.16
+      '@supabase/supabase-js':
+        specifier: 2.119.0
+        version: 2.119.0
       typescript:
         specifier: 7.0.2
         version: 7.0.2
