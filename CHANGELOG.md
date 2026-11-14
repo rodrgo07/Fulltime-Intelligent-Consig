@@ -7,21 +7,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 ### Adicionado
 - `profiles.must_change_password` (existentes `false`, novos `true`) e `rpc/mark_password_changed`, para a troca de
   senha obrigatória no primeiro login, travada no banco (`PASSWORD_CHANGE_REQUIRED` em `require_role`). `config.toml`: sem confirmações por e-mail e `secure_password_change = false`.
-
-### Removido
-- Todo e-mail e todas as Edge Functions (decisão do usuário): saem `admin-invite`, `supabase/functions/`, os
-  templates `supabase/templates/`, os códigos `ALREADY_REGISTERED`, `INVITE_FAILED`,
-  `REGISTER_FAILED` e `METHOD_NOT_ALLOWED` (`INVALID_INPUT` fica: o desktop usa), o `deno check` do CI e o deploy de funções. Migration `…0007`: drop de
-  `operators.notification_email` e de `assert_admin()`; `svc_register_member(p_user_id, p_role, p_display_name)`
-  substitui a versão de 5 argumentos e audita `member.registered`.
-- E-mail de resultado ao operador (decisão do usuário): o aviso passa a ser só no portal, em tempo real. Migration
-  `…0006` remove `notification_queue`, `notification_status`, `svc_claim_notifications`, `svc_finish_notification`,
-  `invoke_notification_dispatch`, o job `fic-dispatch-notifications`, o setting `notification_max_attempts` e o
-  `pg_net`; `finalize_success` não enfileira mais e-mail. Saem a Edge Function `dispatch-notifications`, os módulos
-  de e-mail/Resend, o código `DISPATCH_FAILED` e os secrets `CRON_SECRET`, `RESEND_API_KEY`, `MAIL_FROM` e os
-  segredos `fic_*` do Vault.
-
-### Adicionado
+- Portal: aviso de proposta gerada só no portal, em tempo real — selo “Nova” nas solicitações concluídas ainda não
+  vistas, contador no título e no menu (“(2) Minhas solicitações”), anúncio `aria-live` e “Marcar todas como
+  vistas”. “Vistas” no `localStorage`, por usuário; sem backend. Substitui o e-mail de resultado ao operador.
 - Templates de e-mail do Auth em PT-BR (convite e recuperação) em `supabase/templates/`; aplicados após o SMTP
   próprio (Resend), exigido pelo Supabase no plano free.
 - Teste de regressão do `config.toml` (`supabase/tests/config.test.ts`).
@@ -52,6 +40,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - QA: suítes D2/D3 sem o e-mail de resultado (decisão de simplificar). O D2 termina em `completed` + resultado visível
   ao operador pelo portal (RLS) + exclusão dos dados pessoais; D3 local e live sem `notification_queue`,
   `svc_claim_notifications`/`svc_finish_notification` e `dispatch-notifications`.
+- Portal (Acessos): coluna “E-mail de notificação” passa a “E-mail” (não há mais aviso por e-mail). Desktop: o
+  detalhe da solicitação não mostra mais o estado do “E-mail ao proprietário” e não depende de `notifications`.
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment
   `production` restrito a tags `v*` com aprovação. O deploy manual do Supabase deve ser disparado a partir de uma tag.
 - Tokens de cor ajustados para contraste AA nos dois temas (texto fraco, estados, bordas de campo) — teste de
@@ -61,6 +51,19 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
   cheia, sem faixa de logos por cima, seguido do nome “Fulltime Intelligent Consig” por 1,6 s (gatilho: evento
   `ended`, com timeout de segurança). Mantidos: pular com Esc/Enter/Espaço a partir da 2ª execução e modo de
   movimento reduzido (só o nome). Removido o fundo antigo `intro-bg.mp4`.
+
+### Removido
+- Todo e-mail e todas as Edge Functions (decisão do usuário): saem `admin-invite`, `supabase/functions/`, os
+  templates `supabase/templates/`, os códigos `ALREADY_REGISTERED`, `INVITE_FAILED`,
+  `REGISTER_FAILED` e `METHOD_NOT_ALLOWED` (`INVALID_INPUT` fica: o desktop usa), o `deno check` do CI e o deploy de funções. Migration `…0007`: drop de
+  `operators.notification_email` e de `assert_admin()`; `svc_register_member(p_user_id, p_role, p_display_name)`
+  substitui a versão de 5 argumentos e audita `member.registered`.
+- E-mail de resultado ao operador (decisão do usuário): o aviso passa a ser só no portal, em tempo real. Migration
+  `…0006` remove `notification_queue`, `notification_status`, `svc_claim_notifications`, `svc_finish_notification`,
+  `invoke_notification_dispatch`, o job `fic-dispatch-notifications`, o setting `notification_max_attempts` e o
+  `pg_net`; `finalize_success` não enfileira mais e-mail. Saem a Edge Function `dispatch-notifications`, os módulos
+  de e-mail/Resend, o código `DISPATCH_FAILED` e os secrets `CRON_SECRET`, `RESEND_API_KEY`, `MAIL_FROM` e os
+  segredos `fic_*` do Vault.
 
 ### Corrigido
 - `dispatch-notifications`: `RESEND_API_KEY`/`MAIL_FROM` só são lidos quando há notificação a enviar; com a fila

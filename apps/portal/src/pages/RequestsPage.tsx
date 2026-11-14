@@ -1,54 +1,43 @@
-import { useCallback, useEffect, useState } from "react";
-import { FINAL_STATUSES, statusReasonLabel, type ApiError } from "@fic/contracts";
+import { useEffect, useState } from "react";
+import { FINAL_STATUSES, statusReasonLabel } from "@fic/contracts";
 import { RefreshCw } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
-import type { RequestWithResult } from "../lib/api";
 import { navigate } from "../lib/router";
+import { useMyRequests, type MyRequests } from "../lib/useMyRequests";
 import { fmtDateTime, fmtTime, Status } from "../components/Status";
 import { EmptyState, ErrorState, Loading } from "../components/States";
 
 /** Heartbeat mais antigo que isto = backoffice sem conexão recente. */
 const PRESENCE_WINDOW_MS = 3 * 60_000;
 
-export function RequestsPage() {
+/** Lista do operador. Os dados vêm de `useMyRequests` (no App), que também controla o selo "Nova". */
+export function RequestsPage({ data: shared }: { data?: MyRequests }) {
   const { api, session } = useAuth();
-  const [rows, setRows] = useState<RequestWithResult[] | null>(null);
-  const [error, setError] = useState<ApiError | null>(null);
+  // Sem dados do App (uso isolado/testes), a página carrega sozinha; com eles, o hook local fica inativo.
+  const own = useMyRequests(api, shared ? null : session?.user.id ?? null);
+  const data = shared ?? own;
+  const { rows, refreshing, updatedAt, newIds, newCount, markSeen, markAllSeen } = data;
+  const reload = data.reload;
+  const [actionError, setActionError] = useState<string | null>(null);
   const [presence, setPresence] = useState<{ at: string | null } | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const error = actionError ?? data.error?.message ?? null;
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
-    const [r, p] = await Promise.all([api.myRequests(), api.backofficePresence()]);
-    if (r.ok) {
-      setRows(r.data);
-      setError(null);
-      setUpdatedAt(new Date());
-    } else setError(r.error);
-    setPresence(p.ok ? { at: p.data } : null);
-    setRefreshing(false);
-  }, [api]);
-
+  // Presença do backoffice acompanha cada atualização da lista.
   useEffect(() => {
-    void load();
-    const unsub = api.subscribeMyRequests(() => void load());
-    // Reconsulta periódica: não depende só do Realtime.
-    const t = window.setInterval(() => void load(), 30_000);
-    return () => {
-      unsub();
-      window.clearInterval(t);
-    };
-  }, [api, load]);
+    let alive = true;
+    api.backofficePresence().then((p) => alive && setPresence(p.ok ? { at: p.data } : null));
+    return () => { alive = false; };
+  }, [api, updatedAt]);
 
   async function cancel(id: string, ref: string) {
     if (!window.confirm(`Cancelar a solicitação ${ref}? Os dados enviados serão excluídos.`)) return;
     setCancelling(id);
+    setActionError(null);
     const r = await api.cancel(id);
     setCancelling(null);
-    if (!r.ok) setError(r.error);
-    void load();
+    if (!r.ok) setActionError(r.error.message);
+    void reload();
   }
 
   const presenceTone = presence === null ? "muted" : presence.at && Date.now() - new Date(presence.at).getTime() < PRESENCE_WINDOW_MS ? "success" : "attention";
@@ -65,7 +54,10 @@ export function RequestsPage() {
         </div>
         <div className="head-actions">
           <span className="status" data-tone={presenceTone}>{presenceText}</span>
-          <button className="btn" onClick={() => void load()} disabled={refreshing} aria-busy={refreshing || undefined}>
+          {newCount > 0 && (
+            <button className="btn" onClick={markAllSeen}>Marcar todas como vistas</button>
+          )}
+          <button className="btn" onClick={() => void reload()} disabled={refreshing} aria-busy={refreshing || undefined}>
             <RefreshCw size={14} aria-hidden="true" className={refreshing ? "spin" : undefined} />
             {refreshing ? "Atualizando…" : "Atualizar"}
           </button>
@@ -73,14 +65,14 @@ export function RequestsPage() {
       </header>
 
       {rows === null && error ? (
-        <ErrorState message={error.message} onRetry={() => void load()} retrying={refreshing} />
+        <ErrorState message={error} onRetry={() => void reload()} retrying={refreshing} />
       ) : rows === null ? (
         <Loading label="Carregando solicitações…" />
       ) : (
         <>
           {error && (
             <div className="notice" data-tone="danger" role="alert">
-              {error.message} {updatedAt && <>Exibindo os dados de {fmtTime(updatedAt)}.</>}
+              {error} {updatedAt && <>Exibindo os dados de {fmtTime(updatedAt)}.</>}
             </div>
           )}
           {rows.length === 0 ? (
@@ -107,10 +99,18 @@ export function RequestsPage() {
                 <tbody>
                   {rows.map((r) => {
                     const reason = statusReasonLabel(r.status_reason);
+                    const isNew = newIds.has(r.id);
                     return (
-                      <tr key={r.id}>
+                      <tr key={r.id} data-new={isNew || undefined}>
                         <td className="mono" data-label="Operação">
                           {r.public_ref}
+                          {isNew && (
+                            // Texto "Nova" (não só cor); clicar/Enter marca como vista.
+                            <button className="badge-new" onClick={() => markSeen(r.id)}
+                              aria-label={`Nova: proposta gerada para ${r.public_ref}. Marcar como vista`}>
+                              Nova
+                            </button>
+                          )}
                           {r.owner_operator_id !== session?.user.id && <span className="tag">Remetente</span>}
                         </td>
                         <td data-label="Recebida">{fmtDateTime(r.received_at)}</td>
