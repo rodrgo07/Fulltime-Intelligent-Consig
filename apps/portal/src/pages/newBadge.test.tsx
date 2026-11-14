@@ -57,7 +57,7 @@ describe("selo 'Nova' de proposta gerada", () => {
 
     const b = await screen.findByRole("button", { name: /Nova: proposta gerada para FIC-000000-TESTEA01/ });
     expect(b.textContent).toBe("Nova"); // texto, não só cor
-    expect(document.title).toMatch(/^\(1\) Minhas solicitações/);
+    await waitFor(() => expect(document.title).toMatch(/^\(1\) Minhas solicitações/));
     expect(within(nav()).getByRole("link", { name: /Minhas solicitações, 1 proposta nova/ })).toBeTruthy();
     await waitFor(() => expect(live().textContent).toBe("Proposta gerada: FIC-000000-TESTEA01"));
   });
@@ -85,7 +85,7 @@ describe("selo 'Nova' de proposta gerada", () => {
 
     setup();
     await screen.findByRole("button", { name: /Nova: .*TESTEB02/ });
-    expect(document.title).toMatch(/^\(2\) /);
+    await waitFor(() => expect(document.title).toMatch(/^\(2\) /));
     fireEvent.click(screen.getByRole("button", { name: "Marcar todas como vistas" }));
     await waitFor(() => expect(badge("FIC-000000-TESTEA01")).toBeNull());
     expect(badge("FIC-000000-TESTEB02")).toBeNull();
