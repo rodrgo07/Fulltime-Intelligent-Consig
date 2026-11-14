@@ -16,7 +16,7 @@ export function fakeApi(overrides: Record<string, unknown> = {}) {
     submit: vi.fn(),
     members: vi.fn(async () => ({ ok: true, data: [] })),
     setMemberActive: vi.fn(async () => ({ ok: true, data: null })),
-    invite: vi.fn(async () => ({ ok: true, data: {} })),
+    markPasswordChanged: vi.fn(async () => ({ ok: true, data: null })),
     ...overrides,
   };
 }
@@ -25,16 +25,14 @@ export function fakeAuth(overrides: Record<string, unknown> = {}) {
   return {
     loading: false,
     session: { user: { id: FAKE_UID } },
-    profile: { id: FAKE_UID, role: "operator", display_name: "Operador Teste", active: true },
-    operator: { id: FAKE_UID, operator_code: "OP-TESTE", notification_email: "operador@example.test" },
+    profile: { id: FAKE_UID, role: "operator", display_name: "Operador Teste", active: true, must_change_password: false },
+    operator: { id: FAKE_UID, operator_code: "OP-TESTE" },
     aal: "aal1",
-    needsPassword: false,
     loadError: null,
     api: fakeApi(),
-    sb: {},
+    sb: { auth: { updateUser: vi.fn(async () => ({ data: {}, error: null })) } },
     refresh: vi.fn(async () => {}),
     signOut: vi.fn(async () => {}),
-    clearNeedsPassword: vi.fn(),
     ...overrides,
   };
 }

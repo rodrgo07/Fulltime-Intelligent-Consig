@@ -18,18 +18,19 @@ async function wrap<T>(p: PromiseLike<{ data: unknown; error: unknown }>): Promi
   }
 }
 
-export type Profile = { id: string; role: AppRole; display_name: string; active: boolean };
-export type OperatorInfo = { id: string; operator_code: string; notification_email: string };
+/** `must_change_password`: senha provisória definida pelo admin; o portal exige a troca antes de qualquer tela. */
+export type Profile = { id: string; role: AppRole; display_name: string; active: boolean; must_change_password: boolean };
+export type OperatorInfo = { id: string; operator_code: string };
 export type RequestWithResult = ProposalRequestRow & { proposal_results: ProposalResultRow | null };
 
 export function createApi(sb: SupabaseClient) {
   return {
     // maybeSingle: perfil ausente/oculto pelo RLS (desativado) é `null`, não erro — erro é só falha real.
     myProfile: (uid: string) =>
-      wrap<Profile | null>(sb.from("profiles").select("id, role, display_name, active").eq("id", uid).maybeSingle()),
+      wrap<Profile | null>(sb.from("profiles").select("id, role, display_name, active, must_change_password").eq("id", uid).maybeSingle()),
 
     myOperator: (uid: string) =>
-      wrap<OperatorInfo | null>(sb.from("operators").select("id, operator_code, notification_email").eq("id", uid).maybeSingle()),
+      wrap<OperatorInfo | null>(sb.from("operators").select("id, operator_code").eq("id", uid).maybeSingle()),
 
     activeForm: () =>
       wrap<FormDefinition | null>(sb.from("form_definitions").select("version, title, fields").eq("active", true).maybeSingle()),
@@ -54,24 +55,16 @@ export function createApi(sb: SupabaseClient) {
 
     // ---------- admin
     members: () =>
-      wrap<(Profile & { created_at: string; operators: Pick<OperatorInfo, "operator_code" | "notification_email"> | null })[]>(
-        sb.from("profiles").select("id, role, display_name, active, created_at, operators(operator_code, notification_email)")
+      wrap<(Profile & { created_at: string; operators: Pick<OperatorInfo, "operator_code"> | null })[]>(
+        sb.from("profiles").select("id, role, display_name, active, created_at, operators(operator_code)")
           .order("created_at", { ascending: true })),
+
+    /** Depois de trocar a senha no Auth: o banco desmarca `must_change_password` do próprio usuário. */
+    markPasswordChanged: () => wrap<unknown>(sb.rpc("mark_password_changed")),
 
     setMemberActive: (profileId: string, active: boolean) =>
       wrap<unknown>(sb.rpc("admin_set_member_active", { p_profile_id: profileId, p_active: active })),
 
-    invite: async (email: string, displayName: string, role: AppRole): Promise<Result<unknown>> => {
-      const { data, error } = await sb.functions.invoke("admin-invite", {
-        body: { email, display_name: displayName, role },
-      });
-      if (!error) return { ok: true, data };
-      // Sem resposta HTTP (FunctionsFetchError) = rede; com resposta, o corpo traz o código estável.
-      const ctx = (error as { context?: unknown }).context;
-      if (!(ctx instanceof Response)) return { ok: false, error: toApiError({ name: "FunctionsFetchError", message: "fetch" }) };
-      const body = await ctx.json().catch(() => ({})) as { code?: string };
-      return { ok: false, error: toApiError({ message: body.code ?? "UNKNOWN" }) };
-    },
 
     /** Realtime + reconsulta: o chamador recarrega a lista a cada evento. */
     subscribeMyRequests: (onChange: () => void) => {

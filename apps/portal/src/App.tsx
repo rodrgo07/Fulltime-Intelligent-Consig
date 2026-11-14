@@ -6,10 +6,10 @@ import { ErrorState, Loading } from "./components/States";
 import { navigate, usePath } from "./lib/router";
 import { useMyRequests } from "./lib/useMyRequests";
 import { AdminPage } from "./pages/AdminPage";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewRequestPage } from "./pages/NewRequestPage";
 import { RequestsPage } from "./pages/RequestsPage";
-import { SetPasswordPage } from "./pages/SetPasswordPage";
 
 const APP_TITLE = "Fulltime Intelligent Consig — Portal";
 
@@ -31,7 +31,7 @@ function AuthMessage({ title, children }: { title: string; children: React.React
 }
 
 export function App() {
-  const { loading, session, profile, operator, needsPassword, loadError, refresh, signOut, api } = useAuth();
+  const { loading, session, profile, operator, loadError, refresh, signOut, api } = useAuth();
   // Só operadores têm solicitações: sem operador, o hook não consulta nada.
   const requests = useMyRequests(api, operator ? session?.user.id ?? null : null);
   const newCount = requests.newCount;
@@ -48,13 +48,15 @@ export function App() {
 
   let page;
   let title: string;
-  if (path === "/admin" && isAdmin) [page, title] = [<MfaGate><AdminPage /></MfaGate>, "Acessos"];
+  if (path === "/alterar-senha") [page, title] = [<ChangePasswordPage forced={false} />, "Alterar senha"];
+  else if (path === "/admin" && isAdmin) [page, title] = [<MfaGate><AdminPage /></MfaGate>, "Acessos"];
   else if (path === "/solicitacoes" && operator) [page, title] = [<RequestsPage data={requests} />, "Minhas solicitações"];
   else if (operator) [page, title] = [<NewRequestPage />, "Nova solicitação"];
   else if (isAdmin) [page, title] = [<MfaGate><AdminPage /></MfaGate>, "Acessos"];
   else [page, title] = [<div className="notice">O portal é destinado a operadores. O backoffice usa o aplicativo desktop.</div>, "Portal"];
 
-  const inShell = !loading && !loadError && !(needsPassword && session) && !!session && !!profile;
+  const mustChange = !!profile?.must_change_password;
+  const inShell = !loading && !loadError && !!session && !!profile && !mustChange;
 
   // Título com o contador de propostas novas, ex.: "(2) Minhas solicitações · …".
   useEffect(() => {
@@ -74,7 +76,6 @@ export function App() {
   if (loading) {
     return <main className="boot" id="conteudo"><Loading label="Carregando o portal…" /></main>;
   }
-  if (needsPassword && session) return <SetPasswordPage />;
   if (!session) return <LoginPage />;
   if (loadError) {
     return (
@@ -93,6 +94,9 @@ export function App() {
       </AuthMessage>
     );
   }
+
+  // Senha provisória do admin: nada abre antes da troca.
+  if (mustChange) return <ChangePasswordPage forced />;
 
   return (
     <div className="shell">
@@ -117,6 +121,8 @@ export function App() {
         <div className="who">
           <span>{profile.display_name}</span>
           {operator && <span className="mono muted">{operator.operator_code}</span>}
+          <a href="/alterar-senha" aria-current={path === "/alterar-senha" ? "page" : undefined}
+            onClick={(e) => { e.preventDefault(); navigate("/alterar-senha"); }}>Alterar senha</a>
           <button className="btn btn-sm" onClick={() => void signOut()} aria-label="Sair" title="Sair"><LogOut size={14} aria-hidden="true" /></button>
         </div>
       </header>

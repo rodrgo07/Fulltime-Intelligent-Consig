@@ -9,7 +9,9 @@ type AuthLikeError = { name?: string; status?: number; code?: string } | null | 
 export function authErrorMessage(error: AuthLikeError, fallback: string): string {
   if (!error) return fallback;
   if (error.name === "AuthRetryableFetchError" || error.status === 0) return ERROR_MESSAGE.NETWORK;
-  if (error.status === 429 || error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit") {
+  if (error.code === "same_password") return "A nova senha precisa ser diferente da atual.";
+  if (error.code === "weak_password") return "Senha fraca. Use ao menos 12 caracteres, com maiúsculas, minúsculas e números.";
+  if (error.status === 429 || error.code === "over_request_rate_limit") {
     return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
   }
   return fallback;
