@@ -59,13 +59,34 @@ describe("dispatch", () => {
         return { data: fn === "svc_claim_notifications" ? [notice] : null, error: null };
       },
       fetch: async () => new Response("{}", { status: 503 }),
-      resendApiKey: "k",
-      from: "nao-responda@exemplo.test",
+      mailConfig: () => ({ resendApiKey: "k", from: "nao-responda@exemplo.test" }),
       log: (msg, meta) => logs.push({ msg, ...meta }),
     });
     expect(out).toEqual({ processed: 1, sent: 0, failed: 1 });
     expect(calls[1]).toEqual(["svc_finish_notification", expect.objectContaining({ p_ok: false, p_retryable: true })]);
     expect(JSON.stringify(logs)).not.toContain("dono@exemplo.test");
+  });
+});
+
+describe("dispatch com a fila vazia", () => {
+  it("responde sem ler a configuração de e-mail (health check sem Resend)", async () => {
+    const mailConfig = vi.fn(() => { throw new Error("missing env MAIL_FROM"); });
+    const fetchFn = vi.fn();
+    const out = await dispatchNotifications({
+      rpc: async () => ({ data: [], error: null }), fetch: fetchFn, mailConfig, log: () => {},
+    });
+    expect(out).toEqual({ processed: 0, sent: 0, failed: 0 });
+    expect(mailConfig).not.toHaveBeenCalled();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("com notificação e sem configuração: falha antes de enviar ou finalizar (a reserva expira e volta)", async () => {
+    const calls: string[] = [];
+    await expect(dispatchNotifications({
+      rpc: async (fn) => { calls.push(fn); return { data: fn === "svc_claim_notifications" ? [notice] : null, error: null }; },
+      fetch: vi.fn(), mailConfig: () => { throw new Error("missing env MAIL_FROM"); }, log: () => {},
+    })).rejects.toThrow("MAIL_FROM");
+    expect(calls).toEqual(["svc_claim_notifications"]);
   });
 });
 

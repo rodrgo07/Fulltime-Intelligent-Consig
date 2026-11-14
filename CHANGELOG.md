@@ -39,6 +39,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - Portal no celular: navegação em linha própria (sem rolagem horizontal) e motivo do estado sob o status.
 
 ### Corrigido
+- `dispatch-notifications`: `RESEND_API_KEY`/`MAIL_FROM` só são lidos quando há notificação a enviar; com a fila
+  vazia responde 200 `{processed: 0}` mesmo sem Resend configurado (health check da chave de servidor e do cron).
 - CI: `deno check` das Edge Functions roda dentro de `supabase/functions` (usa o `deno.json` local); na raiz o
   Deno 2.9 exigia os pacotes npm no `node_modules` do pnpm e reescrevia o `package.json`.
 - Deploy: wrangler via `pnpm dlx` com versão fixa (o `cloudflare/wrangler-action` falhava com
