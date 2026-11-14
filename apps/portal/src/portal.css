@@ -68,7 +68,6 @@ details summary { cursor: pointer; font-size: 13px; text-decoration: underline; 
 .cell-actions { text-align: right; white-space: nowrap; }
 .tag { margin-left: var(--space-2); font-family: var(--font-sans); font-size: 11px; color: var(--text-faint); border: var(--hairline); padding: 1px 6px; }
 
-.invite-row { display: grid; grid-template-columns: 1fr 1.4fr 180px auto; gap: var(--space-3); align-items: end; }
 .mfa-enroll { display: grid; gap: var(--space-3); justify-items: start; }
 .mfa-enroll img { background: var(--white); padding: var(--space-2); border: var(--hairline); }
 
@@ -80,7 +79,6 @@ details summary { cursor: pointer; font-size: 13px; text-decoration: underline; 
   .who { margin-left: auto; }
   .who > span:first-child { display: none; }
   .content { padding: var(--space-5) var(--space-4); }
-  .invite-row { grid-template-columns: 1fr; }
   .meta-grid > div + div { border-left: 0; border-top: var(--hairline); }
 
   /* Tabela vira lista empilhada. */
@@ -94,3 +92,15 @@ details summary { cursor: pointer; font-size: 13px; text-decoration: underline; 
   .table td.cell-actions { justify-content: flex-end; }
   .table td.cell-actions:empty { display: none; }
 }
+
+/* ---------- proposta gerada ainda não vista */
+.badge-new {
+  margin-left: var(--space-2); padding: 1px 8px; border: 1px solid var(--state-success); background: var(--bg);
+  color: var(--state-success); font: 600 11px var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+}
+.badge-new::before { content: "● "; }
+.badge-new:hover { background: var(--bg-hover); }
+.table tr[data-new] { box-shadow: inset 3px 0 0 var(--state-success); }
+.nav-count { font-weight: 600; color: var(--text); }
+.who a { color: var(--text-muted); font-size: 13px; }
+.who a:hover, .who a[aria-current="page"] { color: var(--text); }

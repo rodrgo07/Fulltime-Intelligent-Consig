@@ -9,15 +9,12 @@ type AuthState = {
   profile: Profile | null;
   operator: OperatorInfo | null;
   aal: "aal1" | "aal2" | null;
-  /** Evento do link de e-mail (convite/recuperação): o usuário precisa definir a senha. */
-  needsPassword: boolean;
   /** Falha ao carregar perfil/operador (rede, sessão inválida). Diferente de "sem acesso". */
   loadError: ApiError | null;
   api: Api;
   sb: SupabaseClient;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
-  clearNeedsPassword: () => void;
 };
 
 const Ctx = createContext<AuthState | null>(null);
@@ -30,7 +27,6 @@ export function AuthProvider({ sb, children }: { sb: SupabaseClient; children: R
   const [aal, setAal] = useState<"aal1" | "aal2" | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<ApiError | null>(null);
-  const [needsPassword, setNeedsPassword] = useState(window.location.pathname === "/definir-senha");
 
   const load = useCallback(async (s: Session | null) => {
     setSession(s);
@@ -56,8 +52,7 @@ export function AuthProvider({ sb, children }: { sb: SupabaseClient; children: R
 
   useEffect(() => {
     sb.auth.getSession().then(({ data }) => load(data.session));
-    const { data } = sb.auth.onAuthStateChange((event, s) => {
-      if (event === "PASSWORD_RECOVERY") setNeedsPassword(true);
+    const { data } = sb.auth.onAuthStateChange((_event, s) => {
       // Evita chamadas ao Supabase dentro do callback (recomendação do supabase-js).
       setTimeout(() => void load(s), 0);
     });
@@ -65,12 +60,11 @@ export function AuthProvider({ sb, children }: { sb: SupabaseClient; children: R
   }, [sb, load]);
 
   const value: AuthState = {
-    loading, session, profile, operator, aal, needsPassword, loadError, api, sb,
+    loading, session, profile, operator, aal, loadError, api, sb,
     refresh: async () => load((await sb.auth.getSession()).data.session),
     signOut: async () => {
       await sb.auth.signOut({ scope: "local" });
     },
-    clearNeedsPassword: () => setNeedsPassword(false),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

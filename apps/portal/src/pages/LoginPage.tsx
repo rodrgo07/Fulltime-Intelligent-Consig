@@ -26,21 +26,6 @@ export function LoginPage() {
     }
   }
 
-  async function forgot() {
-    if (!email.trim()) {
-      setMsg({ tone: "danger", text: "Informe seu e-mail para recuperar a senha." });
-      document.getElementById("email")?.focus();
-      return;
-    }
-    setBusy(true);
-    const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/definir-senha` });
-    setBusy(false);
-    // Só rede e limite de envio são informados; o resto mantém a resposta neutra.
-    const problem = authErrorMessage(error, "");
-    setMsg(problem
-      ? { tone: "danger", text: problem }
-      : { tone: "success", text: "Se o e-mail estiver cadastrado, você receberá um link de redefinição." });
-  }
 
   return (
     <main className="auth-screen" id="conteudo">
@@ -61,7 +46,7 @@ export function LoginPage() {
           </div>
           {msg && <div className="notice" data-tone={msg.tone} role={msg.tone === "danger" ? "alert" : "status"}>{msg.text}</div>}
           <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
-          <button className="btn-link" type="button" onClick={forgot} disabled={busy}>Esqueci minha senha</button>
+          <p className="muted small">Esqueceu a senha? Fale com o administrador.</p>
         </form>
         <p className="auth-foot">Acesso somente por convite. Dados tratados conforme a LGPD.</p>
       </section>

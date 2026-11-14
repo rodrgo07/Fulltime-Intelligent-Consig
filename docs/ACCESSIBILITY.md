@@ -33,6 +33,20 @@ Toda tela que carrega dados tem três estados explícitos, com os componentes `L
 
 No portal, falha ao carregar o perfil (rede) é diferente de “Acesso não liberado” (perfil inexistente/desativado).
 
+## Aviso de proposta gerada (selo "Nova")
+
+O operador não recebe e-mail de resultado: o aviso é só no portal, em tempo real (Realtime + reconsulta a cada 30 s).
+
+- Proposta que virou `completed` e ainda não foi vista ganha o selo **“Nova”** (texto, não só cor; borda verde na
+  linha só reforça). O selo é um botão: clicar ou Enter marca como vista; há também “Marcar todas como vistas”.
+- Contador no título da aba e no menu, ex.: “(2) Minhas solicitações”; no menu o leitor de tela ouve
+  “Minhas solicitações, 2 propostas novas”.
+- Região `role="status"` + `aria-live="polite"` anuncia “Proposta gerada: FIC-…” quando a mudança acontece com o
+  portal aberto (em qualquer página). A primeira carga não anuncia o que já estava novo.
+- “Vistas” ficam no `localStorage` do navegador, por usuário (`fic:propostas-vistas:<user id>`, só UUIDs). No 1º acesso
+  em um navegador, o que já estava concluído conta como visto. Trocar de navegador pode fazer o selo reaparecer.
+- Testes: `apps/portal/src/pages/newBadge.test.tsx`.
+
 ## Checklist manual (antes de cada release)
 
 - [ ] Navegar só com teclado (Tab, Shift+Tab, Enter, Espaço, Esc) por login, envio, acompanhamento e admin.

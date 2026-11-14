@@ -4,11 +4,12 @@ import { useAuth } from "./auth/AuthProvider";
 import { MfaGate } from "./components/MfaGate";
 import { ErrorState, Loading } from "./components/States";
 import { navigate, usePath } from "./lib/router";
+import { useMyRequests } from "./lib/useMyRequests";
 import { AdminPage } from "./pages/AdminPage";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NewRequestPage } from "./pages/NewRequestPage";
 import { RequestsPage } from "./pages/RequestsPage";
-import { SetPasswordPage } from "./pages/SetPasswordPage";
 
 const APP_TITLE = "Fulltime Intelligent Consig — Portal";
 
@@ -30,7 +31,10 @@ function AuthMessage({ title, children }: { title: string; children: React.React
 }
 
 export function App() {
-  const { loading, session, profile, operator, needsPassword, loadError, refresh, signOut } = useAuth();
+  const { loading, session, profile, operator, loadError, refresh, signOut, api } = useAuth();
+  // Só operadores têm solicitações; com a troca de senha pendente, nada é consultado (o banco também recusa).
+  const requests = useMyRequests(api, operator && !profile?.must_change_password ? session?.user.id ?? null : null);
+  const newCount = requests.newCount;
   const path = usePath();
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
@@ -44,18 +48,24 @@ export function App() {
 
   let page;
   let title: string;
-  if (path === "/admin" && isAdmin) [page, title] = [<MfaGate><AdminPage /></MfaGate>, "Acessos"];
-  else if (path === "/solicitacoes" && operator) [page, title] = [<RequestsPage />, "Minhas solicitações"];
+  if (path === "/alterar-senha") [page, title] = [<ChangePasswordPage forced={false} />, "Alterar senha"];
+  else if (path === "/admin" && isAdmin) [page, title] = [<MfaGate><AdminPage /></MfaGate>, "Acessos"];
+  else if (path === "/solicitacoes" && operator) [page, title] = [<RequestsPage data={requests} />, "Minhas solicitações"];
   else if (operator) [page, title] = [<NewRequestPage />, "Nova solicitação"];
   else if (isAdmin) [page, title] = [<MfaGate><AdminPage /></MfaGate>, "Acessos"];
   else [page, title] = [<div className="notice">O portal é destinado a operadores. O backoffice usa o aplicativo desktop.</div>, "Portal"];
 
-  const inShell = !loading && !loadError && !(needsPassword && session) && !!session && !!profile;
+  const mustChange = !!profile?.must_change_password;
+  const inShell = !loading && !loadError && !!session && !!profile && !mustChange;
 
-  // Troca de página: atualiza o título e leva o foco ao conteúdo (não na primeira carga).
+  // Título com o contador de propostas novas, ex.: "(2) Minhas solicitações · …".
+  useEffect(() => {
+    if (inShell) document.title = (newCount > 0 ? `(${newCount}) ` : "") + pageTitle(title);
+  }, [title, inShell, newCount]);
+
+  // Troca de página: leva o foco ao conteúdo (não na primeira carga).
   useEffect(() => {
     if (!inShell) return;
-    document.title = pageTitle(title);
     if (firstRender.current) {
       firstRender.current = false;
       return;
@@ -66,7 +76,6 @@ export function App() {
   if (loading) {
     return <main className="boot" id="conteudo"><Loading label="Carregando o portal…" /></main>;
   }
-  if (needsPassword && session) return <SetPasswordPage />;
   if (!session) return <LoginPage />;
   if (loadError) {
     return (
@@ -86,6 +95,9 @@ export function App() {
     );
   }
 
+  // Senha provisória do admin: nada abre antes da troca.
+  if (mustChange) return <ChangePasswordPage forced />;
+
   return (
     <div className="shell">
       <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
@@ -98,17 +110,25 @@ export function App() {
           {nav.map((n) => (
             <a key={n.to} href={n.to} aria-current={path === n.to ? "page" : undefined}
               onClick={(e) => { e.preventDefault(); navigate(n.to); }}>
+              {n.to === "/solicitacoes" && newCount > 0 && <span className="nav-count" aria-hidden="true">({newCount}) </span>}
               {n.label}
+              {n.to === "/solicitacoes" && newCount > 0 && (
+                <span className="visually-hidden">, {newCount} {newCount === 1 ? "proposta nova" : "propostas novas"}</span>
+              )}
             </a>
           ))}
         </nav>
         <div className="who">
           <span>{profile.display_name}</span>
           {operator && <span className="mono muted">{operator.operator_code}</span>}
+          <a href="/alterar-senha" aria-current={path === "/alterar-senha" ? "page" : undefined}
+            onClick={(e) => { e.preventDefault(); navigate("/alterar-senha"); }}>Alterar senha</a>
           <button className="btn btn-sm" onClick={() => void signOut()} aria-label="Sair" title="Sair"><LogOut size={14} aria-hidden="true" /></button>
         </div>
       </header>
       <main className="content" id="conteudo" ref={mainRef} tabIndex={-1}>{page}</main>
+      {/* Aviso em tempo real de proposta gerada (o operador não recebe mais e-mail). */}
+      <div className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{requests.announcement}</div>
     </div>
   );
 }

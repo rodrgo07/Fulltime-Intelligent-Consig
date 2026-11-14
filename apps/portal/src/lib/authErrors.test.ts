@@ -8,7 +8,11 @@ describe("authErrorMessage", () => {
   });
   it("limite de tentativas tem mensagem própria", () => {
     expect(authErrorMessage({ status: 429 }, "x")).toMatch(/Aguarde/);
-    expect(authErrorMessage({ code: "over_email_send_rate_limit", status: 400 }, "x")).toMatch(/Aguarde/);
+    expect(authErrorMessage({ code: "over_request_rate_limit", status: 400 }, "x")).toMatch(/Aguarde/);
+  });
+  it("troca de senha: mesma senha e senha fraca", () => {
+    expect(authErrorMessage({ code: "same_password", status: 422 }, "x")).toMatch(/diferente da atual/);
+    expect(authErrorMessage({ code: "weak_password", status: 422 }, "x")).toMatch(/Senha fraca/);
   });
   it("credencial inválida mantém o texto neutro (não revela se o e-mail existe)", () => {
     expect(authErrorMessage({ status: 400, code: "invalid_credentials" }, "neutro")).toBe("neutro");

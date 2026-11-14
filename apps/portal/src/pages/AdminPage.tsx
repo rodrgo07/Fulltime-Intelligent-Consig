@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ApiError, AppRole } from "@fic/contracts";
 import { useAuth } from "../auth/AuthProvider";
 import type { Api } from "../lib/api";
@@ -16,10 +16,6 @@ export function AdminPage() {
   const [loadingList, setLoadingList] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState<AppRole>("operator");
-  const [busy, setBusy] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -34,19 +30,6 @@ export function AdminPage() {
 
   useEffect(() => void load(), [load]);
 
-  async function invite(ev: FormEvent) {
-    ev.preventDefault();
-    setBusy(true);
-    setError(null);
-    setOk(null);
-    const r = await api.invite(email.trim(), name.trim(), role);
-    setBusy(false);
-    if (!r.ok) return setError(r.error);
-    setOk(`Convite enviado para ${email.trim()}.`);
-    setEmail("");
-    setName("");
-    void load();
-  }
 
   async function toggle(id: string, displayName: string, active: boolean) {
     if (!active && !window.confirm(`Desativar o acesso de ${displayName}? As sessões abertas serão revogadas.`)) return;
@@ -69,26 +52,10 @@ export function AdminPage() {
         </div>
       </header>
 
-      <form className="invite-row" onSubmit={invite} aria-labelledby="invite-title" aria-busy={busy}>
-        <h2 id="invite-title" className="visually-hidden">Convidar membro</h2>
-        <div className="field">
-          <label htmlFor="inv-name">Nome</label>
-          <input id="inv-name" className="input" value={name} onChange={(e) => setName(e.target.value)} required maxLength={120}
-            autoComplete="off" disabled={busy} />
-        </div>
-        <div className="field">
-          <label htmlFor="inv-email">E-mail</label>
-          <input id="inv-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-            autoComplete="off" disabled={busy} />
-        </div>
-        <div className="field">
-          <label htmlFor="inv-role">Papel</label>
-          <select id="inv-role" className="input" value={role} onChange={(e) => setRole(e.target.value as AppRole)} disabled={busy}>
-            {(Object.keys(ROLE_LABEL) as AppRole[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-          </select>
-        </div>
-        <button className="btn btn-primary" disabled={busy}>{busy ? "Enviando…" : "Convidar"}</button>
-      </form>
+      <p className="notice">
+        Para incluir um membro, crie o usuário no painel do Supabase e registre o papel (ver docs). O acesso é
+        liberado com uma senha provisória, que a pessoa troca no primeiro login.
+      </p>
 
       {ok && <div className="notice" data-tone="success" role="status">{ok}</div>}
       {error && <div className="notice" data-tone="danger" role="alert">{error.message}</div>}
@@ -99,7 +66,7 @@ export function AdminPage() {
       ) : members === null ? (
         <Loading label="Carregando membros…" />
       ) : members.length === 0 ? (
-        <EmptyState title="Nenhum membro cadastrado">Use o formulário acima para convidar o primeiro membro.</EmptyState>
+        <EmptyState title="Nenhum membro cadastrado">Os membros criados no painel do Supabase aparecem aqui.</EmptyState>
       ) : (
         <div className="table-wrap">
           {listError && <div className="notice" data-tone="danger" role="alert">{listError.message} A lista pode estar desatualizada.</div>}
@@ -107,7 +74,7 @@ export function AdminPage() {
             <caption className="visually-hidden">Membros com acesso ao Intelligent Consig</caption>
             <thead>
               <tr>
-                <th scope="col">Nome</th><th scope="col">Papel</th><th scope="col">Código</th><th scope="col">E-mail de notificação</th>
+                <th scope="col">Nome</th><th scope="col">Papel</th><th scope="col">Código</th>
                 <th scope="col">Desde</th><th scope="col">Situação</th><th scope="col"><span className="visually-hidden">Ações</span></th>
               </tr>
             </thead>
@@ -117,7 +84,6 @@ export function AdminPage() {
                   <td data-label="Nome">{m.display_name}</td>
                   <td data-label="Papel">{ROLE_LABEL[m.role]}</td>
                   <td className="mono" data-label="Código">{m.operators?.operator_code ?? "—"}</td>
-                  <td data-label="E-mail">{m.operators?.notification_email ?? "—"}</td>
                   <td data-label="Desde">{fmtDateTime(m.created_at)}</td>
                   <td data-label="Situação">
                     <span className="status" data-tone={m.active ? "success" : "muted"}>{m.active ? "Ativo" : "Desativado"}</span>

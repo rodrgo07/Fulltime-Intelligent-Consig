@@ -13,11 +13,11 @@ function setup(overrides: Record<string, Handler> = {}) {
   return render(<App />);
 }
 
-/** Passa a introdução (já vista: "Pular" com Esc). */
+/** Passa a introdução (já vista): clica em "Pular". O atalho Esc é coberto em Intro.test.tsx. */
 async function pastIntro() {
-  await screen.findByRole("button", { name: /Pular/ });
-  fireEvent.keyDown(window, { key: "Escape" });
-  await screen.findByRole("navigation", { name: "Principal" }, { timeout: 2000 });
+  const skip = await screen.findByRole("button", { name: /Pular/ });
+  fireEvent.click(skip);
+  await screen.findByRole("navigation", { name: "Principal" }, { timeout: 4000 });
 }
 
 beforeEach(() => { document.title = ""; });

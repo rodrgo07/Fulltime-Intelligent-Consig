@@ -95,12 +95,15 @@ describe("AdminPage", () => {
     const members = [
       { id: FAKE_UID, role: "admin", display_name: "Admin Teste", active: true, created_at: "2026-01-01T00:00:00Z", operators: null },
       { id: "00000000-0000-4000-8000-000000000002", role: "operator", display_name: "Operador Fictício", active: true,
-        created_at: "2026-01-02T00:00:00Z", operators: { operator_code: "OP-0002", notification_email: "op2@example.test" } },
+        created_at: "2026-01-02T00:00:00Z", operators: { operator_code: "OP-0002" } },
     ];
     auth = fakeAuth({ api: fakeApi({ members: vi.fn(async () => ({ ok: true, data: members })) }) });
     render(<AdminPage />);
     expect(await screen.findByRole("button", { name: "Desativar o acesso de Operador Fictício" })).toBeTruthy();
-    expect(screen.getAllByRole("columnheader").length).toBe(7);
+    expect(screen.getAllByRole("columnheader").length).toBe(6);
+    expect(screen.queryByRole("columnheader", { name: /E-mail/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Convidar" })).toBeNull();
+    expect(screen.getByText(/crie o usuário no painel do Supabase/)).toBeTruthy();
     expect(screen.getByText("Você")).toBeTruthy();
   });
 });
