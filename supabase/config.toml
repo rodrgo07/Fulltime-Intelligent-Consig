@@ -42,9 +42,6 @@ verify_enabled = true
 sign_in_sign_ups = 30
 token_refresh = 150
 
-[functions.dispatch-notifications]
-verify_jwt = false   # protegida por x-cron-secret (chamada pelo pg_cron)
-
 [functions.admin-invite]
 # Desligado: o verify_jwt do gateway não é confiável com as chaves novas (sb_publishable_/sb_secret_) e
 # chaves de assinatura assimétricas. A função exige "Authorization: Bearer <JWT do usuário>", o PostgREST

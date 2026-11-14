@@ -9,14 +9,14 @@
 │ Pages, CSP estrita)  │◀── Realtime ─│ Postgres + RLS + funções SQL     │── Realtime ────▶│  • sessão + Credential Manager│
 └──────────────────────┘              │   (regras de negócio, fila,      │                  │  • worker da fila (background)│
                                       │    retenção, auditoria)          │                  │  • supervisor do motor        │
-                                      │ pg_cron: retenção, recuperação,  │                  │  • bandeja, autostart, update │
-                                      │   disparo de e-mail              │                  │  UI React 19 (WebView2)       │
-                                      │ Edge Functions: e-mail, convite  │                  └──────────────┬────────────────┘
-                                      └───────────────┬──────────────────┘                     stdio JSON-RPC│
-                                                      │ HTTPS                              ┌──────────────▼────────────────┐
-                                                ┌─────▼─────┐                              │ Motor RPA (Python sidecar)    │
-                                                │  Resend   │                              │  executor · sessão · etapas   │
-                                                └───────────┘                              │  Playwright → Google Chrome   │──▶ Consig (BMG)
+                                      │ pg_cron: retenção, recuperação   │                  │  • bandeja, autostart, update │
+                                      │ Edge Function: convite           │                  │  UI React 19 (WebView2)       │
+                                      │                                  │                  └──────────────┬────────────────┘
+                                      └──────────────────────────────────┘                     stdio JSON-RPC│
+                                                                                           ┌──────────────▼────────────────┐
+                                                                                           │ Motor RPA (Python sidecar)    │
+                                                                                           │  executor · sessão · etapas   │
+                                                                                           │  Playwright → Google Chrome   │──▶ Consig (BMG)
                                                                                            │  fic_ai → Ollama portátil     │
                                                                                            │  (sob demanda, 127.0.0.1)     │
                                                                                            └───────────────────────────────┘
@@ -29,7 +29,7 @@
 | Portal web | `apps/portal` | login, formulário dinâmico, acompanhamento, admin | validar regras (só exibe) |
 | Backend | `supabase/migrations` | **todas** as regras: validação, rate limit, idempotência, fila, transições, retenção, auditoria | — |
 | Integração Supabase (desktop) | `apps/desktop/src-tauri/src/{supabase,auth,realtime}.rs` | REST/Auth/Realtime com JWT do backoffice | usar service_role |
-| Edge Functions | `supabase/functions` | envio de e-mail (Resend), convite de membros | regras de fila |
+| Edge Functions | `supabase/functions` | convite de membros | regras de fila |
 | App desktop | `apps/desktop` | orquestração em segundo plano, UI operacional, integração com Windows | regras de negócio |
 | Motor RPA | `services/engine/src/fic_rpa` | executar fluxos em etapas no Consig com segurança | decidir negócio, guardar dados |
 | IA local | `services/engine/src/fic_ai`, `ialocal/` | interpretar telas inesperadas, sugerir ação de lista fechada | executar ações, usar APIs externas |
@@ -59,8 +59,8 @@
    `mark_job_running` (`running`) → `job.execute`.
 4. Motor executa etapas; heartbeats renovam a reserva; antes de etapa com efeito → `host.confirm_side_effect`
    → `mark_side_effect_started`.
-5. Sucesso → `complete_job`: resultado + fila de e-mail + exclusão dos dados pessoais (mesma transação).
-6. `pg_cron` dispara a Edge Function de e-mail; reenvio com backoff sem duplicar.
+5. Sucesso → `complete_job`: resultado + exclusão dos dados pessoais (mesma transação).
+6. O portal do operador mostra a proposta gerada em tempo real (Realtime + reconsulta). Não há e-mail.
 7. Falha → `fail_job`/`escalate_job`; humano decide na Central de Automação.
 
 ## Estrutura do repositório

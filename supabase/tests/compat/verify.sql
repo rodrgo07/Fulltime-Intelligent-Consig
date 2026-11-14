@@ -1,37 +1,29 @@
 -- Verificação pós-migrations num Supabase real (CI: job supabase-compat; local: supabase db start).
--- Falha (ON_ERROR_STOP) se algo que o PGlite não reproduz ficou errado: pg_cron, pg_net, vault,
--- publicação do Realtime e privilégios dos papéis da API. Não grava nada.
+-- Falha (ON_ERROR_STOP) se algo que o PGlite não reproduz ficou errado: pg_cron, publicação do Realtime
+-- e privilégios dos papéis da API. Não grava nada.
 do $$
 declare
   missing text;
   n integer;
 begin
-  -- pg_cron com os 4 jobs do projeto
+  -- pg_cron com exatamente os 3 jobs do projeto
   if not exists (select 1 from pg_extension where extname = 'pg_cron') then
     raise exception 'COMPAT: pg_cron não instalado';
   end if;
   select string_agg(j, ', ') into missing
-    from unnest(array['fic-recover-stale-jobs', 'fic-retention', 'fic-cron-history', 'fic-dispatch-notifications']) j
+    from unnest(array['fic-recover-stale-jobs', 'fic-retention', 'fic-cron-history']) j
    where not exists (select 1 from cron.job where jobname = j and active);
   if missing is not null then raise exception 'COMPAT: jobs ausentes em cron.job: %', missing; end if;
+  select string_agg(jobname, ', ') into missing from cron.job
+   where jobname like 'fic-%' and jobname not in ('fic-recover-stale-jobs', 'fic-retention', 'fic-cron-history');
+  if missing is not null then raise exception 'COMPAT: jobs inesperados em cron.job: %', missing; end if;
 
-  -- pg_net instalado e fora de public (advisor extension_in_public)
-  if not exists (select 1 from pg_extension where extname = 'pg_net') then
-    raise exception 'COMPAT: pg_net não instalado';
-  end if;
-  if exists (select 1 from pg_extension where extname = 'pg_net' and extnamespace = 'public'::regnamespace) then
-    raise exception 'COMPAT: pg_net no schema public';
-  end if;
-  if to_regprocedure('net.http_post(text,jsonb,jsonb,jsonb,integer)') is null then
-    raise exception 'COMPAT: net.http_post com a assinatura usada em invoke_notification_dispatch não existe';
+  -- pg_net saiu com o e-mail de resultado (0006): nada do projeto chama HTTP pelo banco
+  if exists (select 1 from pg_extension where extname = 'pg_net') then
+    raise exception 'COMPAT: pg_net ainda instalado';
   end if;
 
-  -- Vault legível pelo dono das funções (postgres)
-  if not has_table_privilege('postgres', 'vault.decrypted_secrets', 'select') then
-    raise exception 'COMPAT: postgres sem acesso a vault.decrypted_secrets';
-  end if;
-
-  -- Realtime
+  -- Realtime (é por ele que o portal mostra a proposta gerada)
   if not exists (select 1 from pg_publication_tables
                   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'proposal_requests') then
     raise exception 'COMPAT: proposal_requests fora da publicação supabase_realtime';
@@ -58,8 +50,8 @@ begin
   select count(*) into n from pg_proc p join pg_namespace s on s.oid = p.pronamespace
    where s.nspname = 'public' and p.proname like 'svc\_%' and has_function_privilege('authenticated', p.oid, 'execute');
   if n > 0 then raise exception 'COMPAT: authenticated executa svc_*'; end if;
-  if not has_function_privilege('service_role', 'public.svc_claim_notifications(integer)', 'execute') then
-    raise exception 'COMPAT: service_role não executa svc_claim_notifications';
+  if not has_function_privilege('service_role', 'public.svc_register_member(uuid,public.app_role,text,text,uuid)', 'execute') then
+    raise exception 'COMPAT: service_role não executa svc_register_member';
   end if;
 
   -- RLS ligado em todas as tabelas de public
@@ -73,4 +65,3 @@ end $$;
 -- As funções agendadas rodam sem erro no ambiente real (sem trabalho pendente, não alteram nada).
 select private.recover_stale_jobs();
 select private.run_retention();
-select private.invoke_notification_dispatch();

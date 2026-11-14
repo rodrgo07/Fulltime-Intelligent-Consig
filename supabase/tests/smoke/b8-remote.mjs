@@ -1,17 +1,16 @@
 // B8 — chaves novas contra um projeto Supabase REMOTO, antes do go-live, com dados 100% fictícios.
-// Cobre: RPC com sb_publishable_ + JWT, recusa do anônimo, Realtime como o desktop, admin-invite com JWT real,
-// dispatch-notifications com x-cron-secret. Tudo o que é criado leva a marca RUN e é apagado no fim.
+// Cobre: RPC com sb_publishable_ + JWT, recusa do anônimo, Realtime como o desktop e admin-invite com JWT real. Tudo o que é criado leva a marca RUN e é apagado no fim.
 //
 // CADA execução contra produção exige aprovação explícita do usuário. Só antes do go-live: a limpeza apaga
 // linhas de audit_logs dos dados fictícios, o que nunca deve ser feito com dados reais.
 //
 // Chaves fora da linha de comando (não ficam no histórico do shell): um arquivo .env FORA do repositório,
 //   ~/fic-b8.env  →  SUPABASE_URL=https://<ref>.supabase.co, SUPABASE_PUBLISHABLE_KEY=…, SUPABASE_SECRET_KEY=…,
-//                    PORTAL_URL=… e, opcional, CRON_SECRET=…
+//                    PORTAL_URL=…
 //   FIC_B8_ALLOW_REMOTE=<ref> node --env-file="$HOME/fic-b8.env" tests/smoke/b8-remote.mjs
 // ou `read -rs SUPABASE_SECRET_KEY && export SUPABASE_SECRET_KEY` antes de rodar.
 //
-// Salvaguardas: aborta se houver formulário ativo, e-mail pendente, solicitação em andamento ou backoffice visto nos
+// Salvaguardas: aborta se houver formulário ativo, solicitação em andamento ou backoffice visto nos
 // últimos 30 min (o PC real poderia reservar o envio fictício); a solicitação fictícia é cancelada logo após o teste
 // de Realtime; e-mails só @exemplo.test; o convite com aal2 (que tenta enviar e-mail) só roda com
 // FIC_B8_INVITE_AAL2=1 e NÃO deve rodar com SMTP próprio configurado (bounce para @exemplo.test prejudica o domínio
@@ -31,8 +30,6 @@ if (process.env.FIC_B8_ALLOW_REMOTE !== REF) {
 }
 const PUB = env("SUPABASE_PUBLISHABLE_KEY");
 const SEC = env("SUPABASE_SECRET_KEY");
-// Opcional: sem ele, o caminho 200 do dispatch é verificado pelo pg_net com os segredos do Vault (como o cron faz).
-const CRON = process.env.CRON_SECRET ?? "";
 const PORTAL = env("PORTAL_URL");
 if (!PUB.startsWith("sb_publishable_") || !SEC.startsWith("sb_secret_")) throw new Error("use as chaves novas");
 
@@ -177,8 +174,6 @@ try {
   }
   const active = await admin.from("form_definitions").select("version", { count: "exact", head: true }).eq("active", true);
   if ((active.count ?? 0) > 0) throw new Error("há formulário ativo: abortado para não interferir");
-  const pend = await admin.from("notification_queue").select("id", { count: "exact", head: true }).in("status", ["pending", "sending"]);
-  if ((pend.count ?? 0) > 0) throw new Error("há e-mails pendentes: abortado para não disparar envio");
   console.log(`run ${RUN}`);
 
   const anon = createClient(URL_, PUB, opts);
@@ -245,16 +240,6 @@ try {
     check("convite por admin aal2 passa da autenticação (201, ou 502 sem SMTP)", inv === "201" || inv === "502 INVITE_FAILED", inv);
   } else {
     console.log("skip convite aal2: defina FIC_B8_INVITE_AAL2=1 (só sem SMTP próprio; tenta enviar e-mail)");
-  }
-
-  check("dispatch sem segredo → 401", (await fn("dispatch-notifications")).status === 401);
-  check("dispatch com segredo errado → 401", (await fn("dispatch-notifications", { headers: { "x-cron-secret": "errado-" + RUN } })).status === 401);
-  if (CRON) {
-    const d = await fn("dispatch-notifications", { headers: { "x-cron-secret": CRON } });
-    const db = await d.json().catch(() => ({}));
-    check("dispatch com segredo → 200 (svc_claim_notifications com a chave de servidor)", d.status === 200 && db.processed === 0, `${d.status} ${JSON.stringify(db)}`);
-  } else {
-    console.log("skip dispatch 200: sem CRON_SECRET (verificar via pg_net + Vault)");
   }
 } catch (e) {
   failures++;

@@ -55,8 +55,8 @@ pnpm --filter @fic/desktop tauri dev                          # app desktop
 ## Primeiros passos em um ambiente novo
 
 1. Criar o projeto Supabase; `supabase link --project-ref <ref>`; `supabase db push`; `supabase config push`.
-2. Deploy das Edge Functions e `supabase secrets set RESEND_API_KEY=… MAIL_FROM=… CRON_SECRET=… PORTAL_URL=…`.
-3. Segredos do Vault e bootstrap do primeiro admin/backoffice — `docs/DATABASE_SCHEMA.md`.
+2. Deploy da Edge Function `admin-invite` e `supabase secrets set PORTAL_URL=…`.
+3. Bootstrap do primeiro admin/backoffice — `docs/DATABASE_SCHEMA.md`.
 4. Publicar o portal (Cloudflare Pages) com `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — automático a cada
    tag `vX.Y.Z` (`.github/workflows/deploy.yml`, com aprovação no Environment `production`).
 5. Instalar o app no PC do backoffice, informar URL + chave pública (`sb_publishable_…` ou anon legada), entrar com MFA.

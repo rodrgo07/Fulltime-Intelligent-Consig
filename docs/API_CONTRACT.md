@@ -71,7 +71,7 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 | `cancel_request_backoffice(p_request_id, p_reason)` | cancela e apaga dados pessoais |
 | `storage_usage()` | `{database_bytes, limit_bytes, tables, pii_rows}` |
 
-Leitura (RLS staff): `proposal_requests`, `automation_jobs`, `proposal_results`, `audit_logs`, `notification_queue`.
+Leitura (RLS staff): `proposal_requests`, `automation_jobs`, `proposal_results`, `audit_logs`.
 
 **Recepção confiável**: Realtime acorda o worker; independentemente dele, o worker consulta a cada
 `poll_interval_s` (padrão 30 s) e logo após cada reconexão. Reservas expiradas são recuperadas pelo
@@ -121,8 +121,8 @@ tela **localmente** e devolve JSON `{situation, action ∈ allowed, confidence}`
 `retry_step`, `wait_and_retry`, `escalate`. O executor valida (lista da etapa, confiança mínima, nunca em etapa
 com efeito, no máximo 2 recuperações) e executa com código determinístico.
 
-## 8. Backend → E-mail
+## 8. Aviso de proposta gerada
 
-`pg_cron` → `pg_net` → `functions/v1/dispatch-notifications` (header `x-cron-secret`) → `svc_claim_notifications`
-→ Resend (`Idempotency-Key` = id da notificação) → `svc_finish_notification`. Conteúdo: referência, número de
-adesão, status, data/hora (America/Sao_Paulo). Destinatário: e-mail cadastrado do **proprietário do cliente**.
+Não há e-mail de resultado. O operador (remetente ou proprietário) vê a proposta concluída no portal, em tempo
+real: Realtime `postgres_changes` em `proposal_requests` (filtrado por RLS) + reconsulta periódica, e o
+`proposal_results` (número de adesão, status, data/hora) pela leitura com RLS da seção 2.

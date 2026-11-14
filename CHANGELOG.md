@@ -4,6 +4,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 
 ## [Não lançado]
 
+### Removido
+- E-mail de resultado ao operador (decisão do usuário): o aviso passa a ser só no portal, em tempo real. Migration
+  `…0006` remove `notification_queue`, `notification_status`, `svc_claim_notifications`, `svc_finish_notification`,
+  `invoke_notification_dispatch`, o job `fic-dispatch-notifications`, o setting `notification_max_attempts` e o
+  `pg_net`; `finalize_success` não enfileira mais e-mail. Saem a Edge Function `dispatch-notifications`, os módulos
+  de e-mail/Resend, o código `DISPATCH_FAILED` e os secrets `CRON_SECRET`, `RESEND_API_KEY`, `MAIL_FROM` e os
+  segredos `fic_*` do Vault.
+
 ### Adicionado
 - Portal: aviso de proposta gerada só no portal, em tempo real — selo “Nova” nas solicitações concluídas ainda não
   vistas, contador no título e no menu (“(2) Minhas solicitações”), anúncio `aria-live` e “Marcar todas como
