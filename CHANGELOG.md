@@ -33,8 +33,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - QA D3 (projeto real): suíte `test:live`, pulada sem variáveis de ambiente e só leitura por padrão.
 - QA D2: fila ponta a ponta com o motor Python real e um fluxo FALSO só de teste (`services/engine/tests/fake_engine.py`):
   sucesso com e-mail e exclusão dos dados, falha antes/depois do ponto sem retorno, queda do app, queda de rede.
-- Testes de bugs conhecidos: BUG-QA-001 (auditoria do rate limit perdida), BUG-QA-002 (resultado pendente bloqueia a
-  fila após decisão humana), BUG-QA-003 (`config.json` com `service_role` aceito na inicialização).
+- Testes de bugs conhecidos (`it.fails`): BUG-QA-001 (auditoria do rate limit perdida), BUG-QA-002 (resultado
+  pendente bloqueia a fila após decisão humana). Regressão do BUG-QA-003 (`config.json` com `service_role` aceito na
+  inicialização), corrigido no PR #4.
 
 ### Alterado
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment

@@ -236,19 +236,32 @@ mod tests {
         std::fs::remove_dir_all(dir).ok();
     }
 
-    // BUG-QA-003: a recusa só acontece em save(). Na inicialização (lib.rs → store.load() → rebuild_client),
-    // um config.json editado à mão com a service_role é usado sem validação. Quando corrigido, remover o #[ignore].
+    // Regressão do BUG-QA-003 (corrigido no PR #4): um config.json editado à mão com a service_role não pode
+    // chegar ao cliente na inicialização (lib.rs → store.load() → rebuild_client). Complementa
+    // load_discards_forbidden_key_written_by_hand com as variantes de rejects_service_role_variants.
     #[test]
-    #[ignore = "BUG-QA-003: ConfigStore::load não valida a chave (service_role do disco é aceita)"]
     fn load_never_returns_a_service_role_key() {
+        use base64::Engine;
         // Diretório exclusivo deste teste: os testes do cargo rodam em paralelo.
         let dir = std::env::temp_dir().join(format!("fic-cfg-load-sr-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("config.json"),
-            r#"{"supabase_url":"https://abc.supabase.co","supabase_anon_key":"sb_secret_abc"}"#).unwrap();
-        let loaded = ConfigStore::new(&dir).load();
+        let store = ConfigStore::new(&dir);
+        let realistic = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(r#"{"iss":"supabase","ref":"abc","role":"service_role","iat":1,"exp":9999999999}"#);
+        let padded = base64::engine::general_purpose::URL_SAFE.encode(r#"{"role":"service_role"}"#);
+        for key in [
+            "sb_secret_abc".to_string(),
+            " sb_secret_abc".to_string(),
+            format!("eyJhbGciOiJIUzI1NiJ9.{realistic}.sig"),
+            format!("eyJhbGciOiJIUzI1NiJ9.{padded}.sig"),
+        ] {
+            let raw = serde_json::json!({ "supabase_url": "https://abc.supabase.co", "supabase_anon_key": key });
+            std::fs::write(dir.join("config.json"), raw.to_string()).unwrap();
+            let loaded = store.load();
+            assert!(loaded.validate().is_ok(), "config carregada do disco contém chave proibida: {key:?}");
+            assert!(!loaded.supabase_configured(), "cliente seria montado com {key:?}");
+        }
         std::fs::remove_dir_all(&dir).ok();
-        assert!(loaded.validate().is_ok(), "config carregada do disco contém chave proibida");
     }
 
     #[test]
