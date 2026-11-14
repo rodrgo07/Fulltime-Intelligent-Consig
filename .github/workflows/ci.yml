@@ -27,9 +27,9 @@ jobs:
         with:
           # Mudar o próprio CI roda todas as áreas (senão a correção do workflow não é exercitada).
           filters: |
-            # Os testes JS também leem os códigos de erro do SQL, das Edge Functions, do motor e do Rust.
+            # Os testes JS também leem os códigos de erro do SQL, do motor e do Rust.
             js: ['apps/portal/**', 'apps/desktop/src/**', 'apps/desktop/src-tauri/tauri.conf.json', 'apps/desktop/src-tauri/src/**',
-                 'packages/**', 'pnpm-lock.yaml', 'supabase/migrations/**', 'supabase/functions/**', 'services/engine/src/**',
+                 'packages/**', 'pnpm-lock.yaml', 'supabase/migrations/**', 'services/engine/src/**',
                  '.github/workflows/ci.yml']
             db: ['supabase/**', 'services/engine/src/**', 'services/engine/tests/fake_engine.py', 'services/engine/uv.lock', '.github/workflows/ci.yml']
             engine: ['services/engine/**', 'ialocal/manifest.json', 'packages/contracts/fixtures/**', '.github/workflows/ci.yml']
@@ -64,19 +64,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # D2: os testes ponta a ponta da fila sobem o motor Python real com o fluxo FALSO de teste.
       - uses: astral-sh/setup-uv@v6
-      # RLS, funções, retenção e Edge Functions (lógica) em Postgres real (PGlite), sem tocar o projeto da nuvem.
+      # RLS, funções e retenção em Postgres real (PGlite), sem tocar o projeto da nuvem.
       - run: pnpm --filter @fic/supabase test
         env:
           FIC_REQUIRE_E2E: "1"
-      - uses: denoland/setup-deno@v2
-        with: { deno-version: v2.x }
-      # Roda dentro de supabase/functions para o Deno usar o deno.json local ("nodeModulesDir": "none").
-      # Na raiz ele acha package.json + node_modules do pnpm, exige os pacotes npm lá e reescreve o package.json.
-      - name: Type-check das Edge Functions
-        working-directory: supabase/functions
-        run: deno check ./*/index.ts
-      - name: O type-check não alterou arquivos versionados
-        run: git diff --exit-code
 
   supabase-compat:
     # Aplica as migrations num Supabase local efêmero (pg_cron, vault, realtime reais).

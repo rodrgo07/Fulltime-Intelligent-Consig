@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 // Regressões do supabase/config.toml que afetam o projeto real no `supabase config push`.
 const supabaseDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const repoRoot = resolve(supabaseDir, "..");
 const toml = readFileSync(resolve(supabaseDir, "config.toml"), "utf8");
 
 /** Linhas chave = valor de uma seção exata do TOML (sem parser: o arquivo é simples). */
@@ -38,13 +37,16 @@ describe("config.toml do Supabase", () => {
     expect(Number(section("auth").minimum_password_length)).toBeGreaterThanOrEqual(12);
   });
 
-  it.each(["invite", "recovery"])("template %s em PT-BR existe e usa o link do Supabase", (kind) => {
-    const t = section(`auth.email.template.${kind}`);
-    expect(t.subject).toMatch(/Fulltime Intelligent Consig/);
-    const path = resolve(repoRoot, JSON.parse(t.content_path));
-    expect(existsSync(path)).toBe(true);
-    const html = readFileSync(path, "utf8");
-    expect(html).toContain('lang="pt-BR"');
-    expect(html).toContain("{{ .ConfirmationURL }}");
+  it("sistema sem e-mail: sem confirmações e troca de senha sem código por e-mail", () => {
+    expect(section("auth.email")).toMatchObject({
+      enable_confirmations: "false", double_confirm_changes: "false", secure_password_change: "false",
+    });
+  });
+
+  it("sem templates de e-mail nem Edge Functions", () => {
+    expect(toml).not.toMatch(/^\[auth\.email\.template\./m);
+    expect(toml).not.toMatch(/^\[functions\./m);
+    expect(existsSync(resolve(supabaseDir, "templates"))).toBe(false);
+    expect(existsSync(resolve(supabaseDir, "functions"))).toBe(false);
   });
 });

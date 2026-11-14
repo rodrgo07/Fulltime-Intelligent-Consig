@@ -11,7 +11,6 @@ declare global {
 
 // Fontes reais dos códigos: o teste falha se o backend ganhar um código sem mensagem na interface.
 const sql = import.meta.glob<string>("../../../supabase/migrations/*.sql", { query: "?raw", import: "default", eager: true });
-const functions = import.meta.glob<string>("../../../supabase/functions/**/*.ts", { query: "?raw", import: "default", eager: true });
 const engine = import.meta.glob<string>("../../../services/engine/src/fic_rpa/*.py", { query: "?raw", import: "default", eager: true });
 
 const matches = (sources: Record<string, string>, re: RegExp) =>
@@ -50,15 +49,6 @@ describe("contracts", () => {
     const codes = matches(sql, /errcode\s*=\s*'P0001',\s*message\s*=\s*'([A-Z][A-Z0-9_]+)'/g);
     expect(codes.length).toBeGreaterThan(20);
     expect(codes.filter((c) => !ERROR_MESSAGE[c])).toEqual([]);
-  });
-
-  it("cobre todos os códigos das Edge Functions", () => {
-    // Todo literal em MAIÚSCULAS numa linha que monta `{ code: … }` (inclui ternários e fallbacks).
-    const codeLines = Object.values(functions).flatMap((src) =>
-      src.split("\n").filter((l) => /\bcode:/.test(l)).map((l) => l.slice(l.search(/\bcode:/))));
-    const all = [...new Set(codeLines.flatMap((l) => [...l.matchAll(/"([A-Z][A-Z0-9_]+)"/g)].map((m) => m[1])))];
-    expect(all).toEqual(expect.arrayContaining(["INVALID_INPUT", "ALREADY_REGISTERED", "INVITE_FAILED", "REGISTER_FAILED"]));
-    expect(all.filter((c) => !ERROR_MESSAGE[c])).toEqual([]);
   });
 
   it("todo motivo de estado gravado pelo banco e pelo motor tem rótulo", () => {

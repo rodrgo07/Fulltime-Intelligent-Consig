@@ -14,7 +14,7 @@ executa as propostas com um **motor RPA** e, só em situações excepcionais, um
 |---|---|---|
 | Portal dos operadores | `apps/portal` | React 19, TypeScript, Vite, CSS próprio |
 | App desktop (backoffice) | `apps/desktop` | Tauri 2 (Rust) + React 19 |
-| Backend | `supabase/` | Postgres, RLS, funções SQL, pg_cron, Realtime, Edge Functions (Deno) |
+| Backend | `supabase/` | Postgres, RLS, funções SQL, pg_cron, Realtime |
 | Motor RPA + IA local | `services/engine` | Python 3.12, Playwright (Google Chrome), Ollama portátil |
 | Contratos e marca | `packages/` | tipos compartilhados, fixtures, tokens visuais |
 
@@ -31,7 +31,7 @@ Requisitos: Node 24+, pnpm, Rust (stable-msvc) + Visual Studio Build Tools, uv, 
 
 ```bash
 pnpm install
-pnpm --filter @fic/supabase test        # banco (PGlite) + Edge Functions + fila ponta a ponta (sobe o motor; precisa do uv)
+pnpm --filter @fic/supabase test        # banco (PGlite) + config.toml + fila ponta a ponta (sobe o motor; precisa do uv)
 pnpm --filter @fic/contracts test
 pnpm --filter @fic/portal test
 pnpm --filter @fic/desktop test         # interface do desktop (IPC do Tauri simulado)
@@ -55,8 +55,8 @@ pnpm --filter @fic/desktop tauri dev                          # app desktop
 ## Primeiros passos em um ambiente novo
 
 1. Criar o projeto Supabase; `supabase link --project-ref <ref>`; `supabase db push`; `supabase config push`.
-2. Deploy da Edge Function `admin-invite` e `supabase secrets set PORTAL_URL=…`.
-3. Bootstrap do primeiro admin/backoffice — `docs/DATABASE_SCHEMA.md`.
+2. Cadastro do primeiro admin e dos demais membros, sem e-mail — `docs/DATABASE_SCHEMA.md#cadastro-de-membros-sem-e-mail`.
+3. O sistema não envia e-mail e não tem Edge Functions: não há secrets de função a configurar.
 4. Publicar o portal (Cloudflare Pages) com `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — automático a cada
    tag `vX.Y.Z` (`.github/workflows/deploy.yml`, com aprovação no Environment `production`).
 5. Instalar o app no PC do backoffice, informar URL + chave pública (`sb_publishable_…` ou anon legada), entrar com MFA.

@@ -4,7 +4,16 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 
 ## [Não lançado]
 
+### Adicionado
+- `profiles.must_change_password` (existentes `false`, novos `true`) e `rpc/mark_password_changed`, para a troca de
+  senha obrigatória no primeiro login, travada no banco (`PASSWORD_CHANGE_REQUIRED` em `require_role`). `config.toml`: sem confirmações por e-mail e `secure_password_change = false`.
+
 ### Removido
+- Todo e-mail e todas as Edge Functions (decisão do usuário): saem `admin-invite`, `supabase/functions/`, os
+  templates `supabase/templates/`, os códigos `ALREADY_REGISTERED`, `INVITE_FAILED`,
+  `REGISTER_FAILED` e `METHOD_NOT_ALLOWED` (`INVALID_INPUT` fica: o desktop usa), o `deno check` do CI e o deploy de funções. Migration `…0007`: drop de
+  `operators.notification_email` e de `assert_admin()`; `svc_register_member(p_user_id, p_role, p_display_name)`
+  substitui a versão de 5 argumentos e audita `member.registered`.
 - E-mail de resultado ao operador (decisão do usuário): o aviso passa a ser só no portal, em tempo real. Migration
   `…0006` remove `notification_queue`, `notification_status`, `svc_claim_notifications`, `svc_finish_notification`,
   `invoke_notification_dispatch`, o job `fic-dispatch-notifications`, o setting `notification_max_attempts` e o

@@ -9,7 +9,7 @@
 - **Controlador**: definir se é a Fulltime (correspondente) e/ou o Banco BMG para cada finalidade. A relação
   com o banco e com os clientes determina papéis e responsabilidades.
 - **Operadores (LGPD)**: Supabase (banco/autenticação/hospedagem), Cloudflare (hospedagem do portal),
-  Resend (SMTP do Auth: convite e recuperação de senha), GitHub (código e distribuição do app). Exigir contratos/DPAs e verificar
+  GitHub (código e distribuição do app). Exigir contratos/DPAs e verificar
   transferência internacional (art. 33) — os provedores podem armazenar dados fora do Brasil; escolher região
   do projeto Supabase compatível.
 - **Região do Supabase (decisão de 2026-11-13)**: o projeto de produção `qqgzbuaizprpmjeozzis` fica em
@@ -34,7 +34,8 @@ incapacidade — aplicar o art. 11 e reavaliar todo o fluxo.
 - **Cliente**: definidas no mapeamento do Consig (provavelmente identificação, CPF, dados do benefício/matrícula,
   dados bancários para crédito). Existem **somente** em `clients_temp` e na memória do PC do backoffice durante
   a execução. Também passam pela tela do Consig no Chrome controlado (perfil local do app).
-- **Operadores**: nome, e-mail, código, papel, registros de auditoria por ID.
+- **Operadores**: nome, e-mail de login (no Supabase Auth; não é usado para avisos), código, papel, registros de
+  auditoria por ID. O sistema não envia e-mail.
 - **Não coletados**: documentos digitalizados (não há upload nesta fase).
 
 ## 4. Minimização e retenção

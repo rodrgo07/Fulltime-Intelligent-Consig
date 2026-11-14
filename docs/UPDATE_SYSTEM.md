@@ -50,7 +50,7 @@ Commits comuns nunca viram produção. A versão da tag precisa ser igual à de 
 2. Merge em `main`; `git tag vX.Y.Z && git push --tags`.
 3. Aprovar o deploy no GitHub. O app de produção detecta a nova versão.
    A mesma tag dispara `deploy.yml` (portal no Cloudflare Pages), que também pede aprovação no Environment
-   `production`. Migrations/Edge Functions: Actions → Deploy → Run workflow, escolhendo a **tag** em
+   `production`. Migrations: Actions → Deploy → Run workflow, escolhendo a **tag** em
    "Use workflow from" e `target = supabase` (a partir de uma branch o Environment recusa).
 
 ## Limitações conhecidas

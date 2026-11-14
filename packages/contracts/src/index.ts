@@ -83,13 +83,14 @@ export type FieldError = { field: string | null; code: string };
 
 /**
  * Mensagens para os códigos estáveis devolvidos pelo backend (message do erro).
- * Cobre todos os códigos de `supabase/migrations` e `supabase/functions` (verificado em index.test.ts).
+ * Cobre todos os códigos de `supabase/migrations` (verificado em index.test.ts).
  */
 export const ERROR_MESSAGE: Record<string, string> = {
   // Autenticação e permissão
   UNAUTHENTICATED: "Sessão expirada. Entre novamente.",
   FORBIDDEN: "Seu acesso não permite esta ação ou está desativado.",
   MFA_REQUIRED: "Confirme o código do autenticador para continuar.",
+  PASSWORD_CHANGE_REQUIRED: "Troque a sua senha provisória no portal antes de continuar.",
   NOT_AN_OPERATOR: "Seu usuário não está ativo como operador. Fale com um administrador.",
   CANNOT_CHANGE_SELF: "Você não pode alterar o seu próprio acesso.",
   UNAUTHORIZED: "Chamada não autorizada.",
@@ -115,13 +116,8 @@ export const ERROR_MESSAGE: Record<string, string> = {
   NOT_AWAITING_CONFIRMATION: "A solicitação não está aguardando confirmação.",
   JOB_NOT_FOUND: "Execução não encontrada.",
   JOB_NOT_ACTIVE: "Esta execução já foi encerrada ou a reserva expirou.",
-  // Convite de membros (Edge Function admin-invite)
-  ALREADY_REGISTERED: "Este e-mail já está cadastrado.",
-  INVALID_INPUT: "Dados inválidos.",
-  INVITE_FAILED: "Não foi possível enviar o convite agora. Tente novamente em instantes.",
-  REGISTER_FAILED: "O convite foi enviado, mas o cadastro do membro não foi concluído. Avise o responsável técnico.",
   // Infraestrutura
-  METHOD_NOT_ALLOWED: "Operação não suportada.",
+  INVALID_INPUT: "Dados inválidos.",
   NETWORK: "Sem conexão com o servidor. Tente novamente.",
   UNKNOWN: "Não foi possível concluir a operação.",
 };

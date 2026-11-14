@@ -6,14 +6,22 @@ const root = join(import.meta.dirname, "..", "..");
 
 export type Claims = { sub?: string; aal?: "aal1" | "aal2"; role?: string };
 
+const migrationFiles = () => readdirSync(join(root, "migrations")).filter((f) => f.endsWith(".sql")).sort();
+
+/** Aplica as migrations em ordem; com `before`, só as de nome menor (simula um banco já em produção). */
+export async function applyMigrations(db: PGlite, opts: { before?: string; from?: string } = {}) {
+  for (const file of migrationFiles()) {
+    if (opts.before && file >= opts.before) continue;
+    if (opts.from && file < opts.from) continue;
+    await db.exec(readFileSync(join(root, "migrations", file), "utf8"));
+  }
+}
+
 /** Banco novo com stubs do Supabase + todas as migrations, na ordem. */
-export async function freshDb(): Promise<PGlite> {
+export async function freshDb(opts: { before?: string } = {}): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(readFileSync(join(root, "tests/harness/supabase-stubs.sql"), "utf8"));
-  const dir = join(root, "migrations");
-  for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
-    await db.exec(readFileSync(join(dir, file), "utf8"));
-  }
+  await applyMigrations(db, opts);
   return db;
 }
 
@@ -46,15 +54,16 @@ export async function errorCode(p: Promise<unknown>): Promise<string> {
 }
 
 let seq = 0;
-export async function createMember(db: PGlite, role: "operator" | "admin" | "backoffice", active = true) {
+/** Membro de teste. Por padrão já trocou a senha provisória (`mustChangePassword: false`). */
+export async function createMember(db: PGlite, role: "operator" | "admin" | "backoffice", active = true,
+                                   opts: { mustChangePassword?: boolean } = {}) {
   seq += 1;
   const id = crypto.randomUUID();
   const email = `${role}${seq}@exemplo.test`;
   await db.query("insert into auth.users (id, email) values ($1, $2)", [id, email]);
-  await db.query("select public.svc_register_member($1, $2::public.app_role, $3, $4, null)", [
-    id, role, `Pessoa Teste ${seq}`, email,
-  ]);
+  await db.query("select public.svc_register_member($1, $2::public.app_role, $3)", [id, role, `Pessoa Teste ${seq}`]);
   if (!active) await db.query("update public.profiles set active = false where id = $1", [id]);
+  if (!opts.mustChangePassword) await db.query("update public.profiles set must_change_password = false where id = $1", [id]);
   return id;
 }
 

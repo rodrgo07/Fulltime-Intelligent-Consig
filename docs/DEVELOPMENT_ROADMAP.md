@@ -2,7 +2,7 @@
 
 ## Fase 1 — Infraestrutura (esta entrega)
 
-Concluído e testado: repositório, banco (migrations, RLS, fila, retenção, auditoria, notificações), Edge Functions,
+Concluído e testado: repositório, banco (migrations, RLS, fila, retenção, auditoria),
 portal, motor RPA (estrutura), IA local sob demanda, app desktop, intro, CI/CD e updater. Ver `CHANGELOG.md`.
 
 ## Pendências que dependem do usuário
@@ -10,9 +10,7 @@ portal, motor RPA (estrutura), IA local sob demanda, app desktop, intro, CI/CD e
 | Item | Bloqueia | Ação |
 |---|---|---|
 | Projeto Supabase criado | uso real de tudo | criar projeto (região BR se possível); informar URL e anon key; `supabase link` + `db push` |
-| Bootstrap de admin/backoffice | login | ver `DATABASE_SCHEMA.md#primeiro-acesso-bootstrap` |
-| Segredo da Edge Function de convite | convite | `PORTAL_URL` |
-| Domínio verificado no Resend | SMTP do Auth (convite, recuperação) | DNS (SPF/DKIM/DMARC) |
+| Cadastro do admin/backoffice | login | ver `DATABASE_SCHEMA.md#cadastro-de-membros-sem-e-mail` |
 | Cloudflare Pages | portal publicado | projeto + token + variáveis no GitHub |
 | Repositório GitHub + chaves do updater | releases | `UPDATE_SYSTEM.md` |
 | Google Chrome no PC do backoffice | RPA | instalar |

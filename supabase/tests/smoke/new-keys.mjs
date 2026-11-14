@@ -1,9 +1,9 @@
 // Smoke test das chaves novas (sb_publishable_ / sb_secret_) num Supabase LOCAL completo.
-// Cobre o que o PGlite não alcança: gateway, PostgREST, Auth (MFA), Realtime e Edge Functions reais.
+// Cobre o que o PGlite não alcança: gateway, PostgREST, Auth (MFA, troca de senha) e Realtime reais.
 //
-//   supabase start && supabase functions serve --env-file <arquivo com PORTAL_URL>
+//   supabase start
 //   SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... \
-//     PORTAL_URL=http://127.0.0.1:5174 pnpm --filter @fic/supabase smoke:local
+//     pnpm --filter @fic/supabase smoke:local
 //
 // Só roda contra localhost: cria usuários e um formulário fictícios. Nenhum dado real.
 import { createClient } from "@supabase/supabase-js";
@@ -17,7 +17,6 @@ const env = (k) => {
 const URL_ = env("SUPABASE_URL").replace(/\/$/, "");
 const PUB = env("SUPABASE_PUBLISHABLE_KEY");
 const SEC = env("SUPABASE_SECRET_KEY");
-const PORTAL = env("PORTAL_URL");
 if (!["127.0.0.1", "localhost"].includes(new URL(URL_).hostname)) throw new Error("somente Supabase local");
 if (!PUB.startsWith("sb_publishable_") || !SEC.startsWith("sb_secret_")) throw new Error("use as chaves novas");
 
@@ -48,12 +47,23 @@ async function member(role) {
   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (error) throw new Error(`createUser: ${error.message}`);
   const reg = await admin.rpc("svc_register_member", {
-    p_user_id: data.user.id, p_role: role, p_display_name: `Smoke ${role}`, p_email: email, p_invited_by: null,
+    p_user_id: data.user.id, p_role: role, p_display_name: `Smoke ${role}`,
   });
   check(`sb_secret_ executa svc_register_member (${role})`, !reg.error, reg.error?.message);
   const client = createClient(URL_, PUB, opts);
   const s = await client.auth.signInWithPassword({ email, password });
   if (s.error) throw new Error(`signIn: ${s.error.message}`);
+  // Cadastro novo nasce com senha provisória: a API recusa tudo até a troca (trava no banco, 0007).
+  const flag = async () => (await client.from("profiles").select("must_change_password").eq("id", data.user.id).single()).data?.must_change_password;
+  check(`cadastro novo nasce com must_change_password = true (${role})`, (await flag()) === true);
+  if (role === "operator") {
+    const r = await client.rpc("submit_proposal_request", { p_idempotency_key: randomUUID(), p_form_version: 1, p_payload: {} });
+    check("senha provisória: RPC recusada com PASSWORD_CHANGE_REQUIRED (API direta)", r.error?.message === "PASSWORD_CHANGE_REQUIRED", r.error?.message);
+  }
+  const upd = await client.auth.updateUser({ password: randomBytes(18).toString("base64url") + "aA1" });
+  check(`troca de senha logada sem código por e-mail (${role})`, !upd.error, upd.error?.message);
+  const mk = await client.rpc("mark_password_changed");
+  check(`mark_password_changed libera o membro (${role})`, !mk.error && (await flag()) === false, mk.error?.message);
   return { id: data.user.id, client, token: s.data.session.access_token };
 }
 
@@ -89,12 +99,6 @@ function socket(token, onEvent) {
   return { ws, joined, subscribed };
 }
 
-const fn = (name, { token, headers = {}, body = {}, method = "POST" } = {}) =>
-  fetch(`${URL_}/functions/v1/${name}`, {
-    method,
-    headers: { apikey: PUB, "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
-    body: method === "POST" ? JSON.stringify(body) : undefined,
-  });
 
 // ------------------------------------------------------------ RPC com publishable + JWT
 const anon = createClient(URL_, PUB, opts);
@@ -137,22 +141,6 @@ check("evento postgres_changes chega ao backoffice (RLS staff)", boEvents > 0);
 s1.ws.close();
 s2.ws.close();
 
-// ------------------------------------------------------------ admin-invite (verify_jwt = false, JWT validado no código)
-const pre = await fn("admin-invite", { method: "OPTIONS", headers: { Origin: PORTAL, "Access-Control-Request-Headers": "authorization, x-client-info, apikey, content-type" } });
-const allow = pre.headers.get("access-control-allow-headers") ?? "";
-check("preflight libera x-client-info do supabase-js", pre.status === 204 && allow.includes("x-client-info"), allow);
-const inviteBody = { email: `smoke-convite-${randomUUID().slice(0, 8)}@exemplo.test`, display_name: "Convite Fictício", role: "operator" };
-const code = async (res) => `${res.status} ${(await res.json().catch(() => ({}))).code ?? ""}`.trim();
-check("convite sem JWT → 401", (await code(await fn("admin-invite", { body: inviteBody }))) === "401 UNAUTHENTICATED");
-check("convite com chave no Bearer → 401", (await code(await fn("admin-invite", { token: PUB, body: inviteBody }))) === "401 UNAUTHENTICATED");
-check("convite com JWT adulterado → 401", (await code(await fn("admin-invite", { token: op.token.slice(0, -4) + "AAAA", body: inviteBody }))) === "401 UNAUTHENTICATED");
-check("convite por operador → 403 FORBIDDEN", (await code(await fn("admin-invite", { token: op.token, body: inviteBody }))) === "403 FORBIDDEN");
-const adm = await member("admin");
-check("convite por admin aal1 → 403 MFA_REQUIRED", (await code(await fn("admin-invite", { token: adm.token, body: inviteBody }))) === "403 MFA_REQUIRED");
-await withMfa(adm);
-const inv = await fn("admin-invite", { token: adm.token, body: inviteBody });
-const invBody = await inv.json().catch(() => ({}));
-check("convite por admin aal2 → 201 (Auth admin + svc_* com a chave de servidor)", inv.status === 201 && !!invBody.profile_id, `${inv.status} ${invBody.code ?? ""}`);
 
 
 await admin.from("form_definitions").update({ active: false }).eq("version", ver);

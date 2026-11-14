@@ -7,7 +7,7 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 
 ## 1. Convenções
 
-- Transporte externo: HTTPS (PostgREST/Auth/Edge Functions do Supabase). Interno: JSON-RPC 2.0 por stdio.
+- Transporte externo: HTTPS (PostgREST/Auth do Supabase; não há Edge Functions). Interno: JSON-RPC 2.0 por stdio.
 - Autenticação: JWT do Supabase Auth no header `Authorization: Bearer`, mais `apikey` (chave pública:
   `sb_publishable_…` ou a `anon` legada). Chaves de API (`sb_…`) nunca vão no `Authorization`; o supabase-js ≥ 2.119
   já faz isso sozinho. Realtime: chave pública no parâmetro `apikey` da URL e JWT do usuário no `access_token` do
@@ -15,7 +15,7 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 - Erros de negócio: `SQLSTATE P0001` com `message` = **código estável** (`RATE_LIMITED`, `PAYLOAD_INVALID`…) e
   `details` opcional. Interfaces mapeiam o código para mensagens (`ERROR_MESSAGE` em `@fic/contracts`).
   **Todo código novo precisa de mensagem:** `packages/contracts/src/index.test.ts` varre `supabase/migrations` e
-  `supabase/functions` e falha se algum código não estiver em `ERROR_MESSAGE`. Erros de transporte do PostgREST
+  falha se algum código não estiver em `ERROR_MESSAGE`. Erros de transporte do PostgREST
   (`PGRST301/302/303` → `UNAUTHENTICATED`, `42501` → `FORBIDDEN`) e de rede (`NETWORK`) também são mapeados.
 - Motivos gravados em `status_reason`/`error_code` (banco, motor e desktop) têm rótulo em `STATUS_REASON_LABEL`
   (mesmo teste); texto livre de observação não é exibido ao operador.
@@ -48,9 +48,20 @@ Referência única da comunicação entre **portal web**, **backend (Supabase)**
 
 | Chamada | Entrada | Observação |
 |---|---|---|
-| `POST functions/v1/admin-invite` | `{email, display_name, role}` | 201 `{profile_id, operator_code}`; 401 `UNAUTHENTICATED` (sem JWT de usuário, JWT inválido/expirado ou chave de API no `Authorization`); 403 `FORBIDDEN/MFA_REQUIRED`; 409 `ALREADY_REGISTERED`; 422 `INVALID_INPUT`. `verify_jwt = false`: a função valida o JWT (PostgREST + Auth) |
 | `rpc/admin_set_member_active` | `p_profile_id`, `p_active` | desativar revoga refresh tokens; acesso barrado imediatamente nas RPCs |
-| `profiles?select=…,operators(…)` | — | listagem de membros |
+| `profiles?select=…,operators(…)` | — | listagem de membros (o e-mail é o de login, no Auth; `operators` não tem mais e-mail) |
+
+Cadastro de membros: **não há convite pela API**. O admin cria o usuário no painel do Supabase e chama
+`svc_register_member(p_user_id, p_role, p_display_name)` no SQL Editor (só `service_role`); ver
+`DATABASE_SCHEMA.md#cadastro-de-membros-sem-e-mail`.
+
+## 3.1 Qualquer membro autenticado
+
+| Chamada | Entrada | Observação |
+|---|---|---|
+| `profiles?select=must_change_password&id=eq.<uid>` | — | `true` = senha provisória. **Trava no banco:** toda RPC protegida (`private.require_role`) responde `PASSWORD_CHANGE_REQUIRED` até a troca, para qualquer papel e antes do MFA; leituras pelo RLS seguem |
+| `auth.updateUser({ password })` (Auth) | nova senha | sem código por e-mail (`secure_password_change = false`) |
+| `rpc/mark_password_changed` | — | depois da troca: põe `must_change_password = false` no próprio perfil e audita `member.password_changed`; `UNAUTHENTICATED` sem JWT |
 
 ## 4. Desktop → Backend (papel `backoffice`, **aal2**)
 
