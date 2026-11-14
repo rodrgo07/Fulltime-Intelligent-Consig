@@ -6,7 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 
 ### Adicionado
 - `profiles.must_change_password` (existentes `false`, novos `true`) e `rpc/mark_password_changed`, para a troca de
-  senha obrigatória no primeiro login. `config.toml`: sem confirmações por e-mail e `secure_password_change = false`.
+  senha obrigatória no primeiro login, travada no banco (`PASSWORD_CHANGE_REQUIRED` em `require_role`). `config.toml`: sem confirmações por e-mail e `secure_password_change = false`.
 
 ### Removido
 - Todo e-mail e todas as Edge Functions (decisão do usuário): saem `admin-invite`, `supabase/functions/`, os

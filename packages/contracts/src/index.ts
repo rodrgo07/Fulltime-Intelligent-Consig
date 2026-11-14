@@ -90,6 +90,7 @@ export const ERROR_MESSAGE: Record<string, string> = {
   UNAUTHENTICATED: "Sessão expirada. Entre novamente.",
   FORBIDDEN: "Seu acesso não permite esta ação ou está desativado.",
   MFA_REQUIRED: "Confirme o código do autenticador para continuar.",
+  PASSWORD_CHANGE_REQUIRED: "Troque a sua senha provisória no portal antes de continuar.",
   NOT_AN_OPERATOR: "Seu usuário não está ativo como operador. Fale com um administrador.",
   CANNOT_CHANGE_SELF: "Você não pode alterar o seu próprio acesso.",
   UNAUTHORIZED: "Chamada não autorizada.",

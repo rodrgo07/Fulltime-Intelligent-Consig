@@ -54,13 +54,16 @@ export async function errorCode(p: Promise<unknown>): Promise<string> {
 }
 
 let seq = 0;
-export async function createMember(db: PGlite, role: "operator" | "admin" | "backoffice", active = true) {
+/** Membro de teste. Por padrão já trocou a senha provisória (`mustChangePassword: false`). */
+export async function createMember(db: PGlite, role: "operator" | "admin" | "backoffice", active = true,
+                                   opts: { mustChangePassword?: boolean } = {}) {
   seq += 1;
   const id = crypto.randomUUID();
   const email = `${role}${seq}@exemplo.test`;
   await db.query("insert into auth.users (id, email) values ($1, $2)", [id, email]);
   await db.query("select public.svc_register_member($1, $2::public.app_role, $3)", [id, role, `Pessoa Teste ${seq}`]);
   if (!active) await db.query("update public.profiles set active = false where id = $1", [id]);
+  if (!opts.mustChangePassword) await db.query("update public.profiles set must_change_password = false where id = $1", [id]);
   return id;
 }
 

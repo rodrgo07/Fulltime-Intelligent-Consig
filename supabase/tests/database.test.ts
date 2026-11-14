@@ -235,21 +235,39 @@ describe("cadastro sem e-mail (0007)", () => {
   });
 
   it("mark_password_changed baixa só a flag do próprio usuário e audita", async () => {
+    const a = await createMember(db, "operator", true, { mustChangePassword: true });
+    const b = await createMember(db, "operator", true, { mustChangePassword: true });
     const flag = async (id: string) =>
       (await one<{ m: boolean }>("select must_change_password m from public.profiles where id = $1", [id])).m;
-    expect(await flag(op)).toBe(true);
-    expect(await flag(op2)).toBe(true);
-    await as(db, { sub: op }, (tx) => rpc(tx, "public.mark_password_changed()"));
-    expect(await flag(op)).toBe(false);
-    expect(await flag(op2)).toBe(true);
+    expect(await flag(a)).toBe(true);
+    await as(db, { sub: a }, (tx) => rpc(tx, "public.mark_password_changed()"));
+    expect(await flag(a)).toBe(false);
+    expect(await flag(b)).toBe(true);
     // Repetir não gera novo registro de auditoria.
-    await as(db, { sub: op }, (tx) => rpc(tx, "public.mark_password_changed()"));
+    await as(db, { sub: a }, (tx) => rpc(tx, "public.mark_password_changed()"));
     expect((await one<{ n: number }>(
-      "select count(*)::int n from public.audit_logs where action = 'member.password_changed' and actor_id = $1", [op])).n).toBe(1);
-    // O próprio usuário lê a flag (RLS do próprio perfil).
-    const own = await as(db, { sub: op2 }, (tx) => tx.query<{ must_change_password: boolean }>(
-      "select must_change_password from public.profiles where id = $1", [op2]));
+      "select count(*)::int n from public.audit_logs where action = 'member.password_changed' and actor_id = $1", [a])).n).toBe(1);
+    // O próprio usuário lê a flag (RLS do próprio perfil), mesmo com a trava ligada.
+    const own = await as(db, { sub: b }, (tx) => tx.query<{ must_change_password: boolean }>(
+      "select must_change_password from public.profiles where id = $1", [b]));
     expect(own.rows[0].must_change_password).toBe(true);
+  });
+
+  it("senha provisória trava as RPCs de operador e de backoffice no banco até o mark_password_changed", async () => {
+    const o = await createMember(db, "operator", true, { mustChangePassword: true });
+    const b = await createMember(db, "backoffice", true, { mustChangePassword: true });
+    const send = () => as(db, { sub: o }, (tx) =>
+      rpc(tx, "public.submit_proposal_request($1, 1, $2::jsonb)", [crypto.randomUUID(), payload()]));
+    const claim = () => as(db, { sub: b, aal: "aal2" }, (tx) => rpc(tx, "public.claim_next_job('pc-teste')"));
+    expect(await errorCode(send())).toBe("PASSWORD_CHANGE_REQUIRED");
+    expect(await errorCode(claim())).toBe("PASSWORD_CHANGE_REQUIRED");
+    // Vale antes do papel e do MFA: aal1 também recebe PASSWORD_CHANGE_REQUIRED.
+    expect(await errorCode(as(db, { sub: b }, (tx) => rpc(tx, "public.claim_next_job('pc-teste')"))))
+      .toBe("PASSWORD_CHANGE_REQUIRED");
+    await as(db, { sub: o }, (tx) => rpc(tx, "public.mark_password_changed()"));
+    await as(db, { sub: b, aal: "aal2" }, (tx) => rpc(tx, "public.mark_password_changed()"));
+    expect((await send() as { status: string }).status).toBe("received");
+    expect(await errorCode(claim())).toBe("NO_ERROR");
   });
 
   it("mark_password_changed exige usuário autenticado", async () => {

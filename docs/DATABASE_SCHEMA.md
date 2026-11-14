@@ -69,8 +69,9 @@ Criados pela migration `…0004` quando `pg_cron` existe (o job de e-mail saiu n
 ## Cadastro de membros (sem e-mail)
 
 `profiles.must_change_password` (migration `…0007`): perfis que já existiam ficaram com `false`; cadastros
-novos nascem `true`. O portal lê a flag do próprio perfil e só libera o resto depois da troca de senha
-(`auth.updateUser`, sem código por e-mail) seguida de `rpc/mark_password_changed`.
+novos nascem `true`. Enquanto for `true`, `private.require_role` recusa toda RPC com `PASSWORD_CHANGE_REQUIRED` (trava
+no banco, para qualquer papel). O portal lê a flag do próprio perfil e leva à troca de senha (`auth.updateUser`, sem
+código por e-mail) seguida de `rpc/mark_password_changed`, a única RPC fora da trava.
 
 O sistema não envia e-mail. Não há convite, recuperação de senha nem confirmação por e-mail. Todo cadastro e toda
 recuperação são feitos por um **admin**, no painel do Supabase e no SQL Editor, com conferência da identidade da

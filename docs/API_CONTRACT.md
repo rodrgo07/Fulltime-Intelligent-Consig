@@ -59,7 +59,7 @@ Cadastro de membros: **não há convite pela API**. O admin cria o usuário no p
 
 | Chamada | Entrada | Observação |
 |---|---|---|
-| `profiles?select=must_change_password&id=eq.<uid>` | — | `true` = senha provisória: o portal exige a troca antes de liberar o resto |
+| `profiles?select=must_change_password&id=eq.<uid>` | — | `true` = senha provisória. **Trava no banco:** toda RPC protegida (`private.require_role`) responde `PASSWORD_CHANGE_REQUIRED` até a troca, para qualquer papel e antes do MFA; leituras pelo RLS seguem |
 | `auth.updateUser({ password })` (Auth) | nova senha | sem código por e-mail (`secure_password_change = false`) |
 | `rpc/mark_password_changed` | — | depois da troca: põe `must_change_password = false` no próprio perfil e audita `member.password_changed`; `UNAUTHENTICATED` sem JWT |
 

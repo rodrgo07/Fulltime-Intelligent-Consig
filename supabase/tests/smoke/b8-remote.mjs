@@ -65,6 +65,17 @@ async function member(role) {
   const client = createClient(URL_, PUB, opts);
   const s = await client.auth.signInWithPassword({ email, password });
   if (s.error) throw new Error(`signIn(${role}): ${s.error.message}`);
+  // Cadastro novo nasce com senha provisória: a API recusa tudo até a troca (trava no banco, 0007).
+  const flag = async () => (await client.from("profiles").select("must_change_password").eq("id", data.user.id).single()).data?.must_change_password;
+  check(`cadastro novo nasce com must_change_password = true (${role})`, (await flag()) === true);
+  if (role === "operator") {
+    const r = await client.rpc("submit_proposal_request", { p_idempotency_key: randomUUID(), p_form_version: 1, p_payload: {} });
+    check("senha provisória: RPC recusada com PASSWORD_CHANGE_REQUIRED (API direta)", r.error?.message === "PASSWORD_CHANGE_REQUIRED", r.error?.message);
+  }
+  const upd = await client.auth.updateUser({ password: randomBytes(18).toString("base64url") + "aA1" });
+  check(`troca de senha logada sem código por e-mail (${role})`, !upd.error, upd.error?.message);
+  const mk = await client.rpc("mark_password_changed");
+  check(`mark_password_changed libera o membro (${role})`, !mk.error && (await flag()) === false, mk.error?.message);
   return { id: data.user.id, client, token: s.data.session.access_token };
 }
 
@@ -211,14 +222,6 @@ try {
     }
   }
 
-  // Troca de senha obrigatória (0007): cadastro novo nasce com must_change_password = true; o próprio usuário troca a
-  // senha no Auth (sem código por e-mail) e baixa a flag pela RPC.
-  const flagOf = async (m) => (await m.client.from("profiles").select("must_change_password").eq("id", m.id).single()).data?.must_change_password;
-  check("cadastro novo nasce com must_change_password = true", (await flagOf(op)) === true);
-  const upd = await op.client.auth.updateUser({ password: randomBytes(18).toString("base64url") + "aA1" });
-  check("troca de senha logada sem código por e-mail (secure_password_change = false)", !upd.error, upd.error?.message);
-  const mk = await op.client.rpc("mark_password_changed");
-  check("mark_password_changed baixa a flag do próprio usuário", !mk.error && (await flagOf(op)) === false, mk.error?.message);
 } catch (e) {
   failures++;
   console.log(`FAIL execução interrompida — ${e.message}`);

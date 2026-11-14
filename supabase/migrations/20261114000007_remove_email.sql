@@ -9,6 +9,27 @@
 alter table public.profiles add column if not exists must_change_password boolean not null default false;
 alter table public.profiles alter column must_change_password set default true;
 
+-- Trava NO BANCO (decisão do Frank): a senha provisória é conhecida pelo admin, então até ser trocada ela não
+-- pode valer na API. Toda RPC protegida passa por require_role; mark_password_changed fica fora dele.
+-- Resto idêntico à 0002. Leituras pelo RLS (inclusive do próprio perfil, para o portal ver a flag) seguem livres.
+create or replace function private.require_role(p_role public.app_role) returns uuid
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then
+    raise exception using errcode = 'P0001', message = 'UNAUTHENTICATED';
+  end if;
+  if exists (select 1 from public.profiles where id = auth.uid() and must_change_password) then
+    raise exception using errcode = 'P0001', message = 'PASSWORD_CHANGE_REQUIRED';
+  end if;
+  if private.current_app_role() is distinct from p_role then
+    raise exception using errcode = 'P0001', message = 'FORBIDDEN';
+  end if;
+  if p_role <> 'operator' and not private.is_aal2() then
+    raise exception using errcode = 'P0001', message = 'MFA_REQUIRED';
+  end if;
+  return auth.uid();
+end $$;
+
 -- O próprio usuário, depois de trocar a senha no Auth, baixa a flag. Só mexe no próprio perfil.
 create or replace function public.mark_password_changed() returns void
 language plpgsql volatile security definer set search_path = '' as $$
