@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn load_discards_forbidden_key_written_by_hand() {
-        let dir = std::env::temp_dir().join(format!("fic-cfg-load-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("fic-cfg-load-discard-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = ConfigStore::new(&dir);
         for k in ["sb_secret_FAKE0000000000000000_abcd".to_string(), jwt("service_role"), "lixo".into()] {
