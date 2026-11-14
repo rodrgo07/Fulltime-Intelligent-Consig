@@ -26,8 +26,7 @@ Deno.serve(async (req) => {
     const out = await dispatchNotifications({
       rpc: (fn, args) => sb.rpc(fn, args),
       fetch,
-      resendApiKey: env("RESEND_API_KEY"),
-      from: env("MAIL_FROM"),
+      mailConfig: () => ({ resendApiKey: env("RESEND_API_KEY"), from: env("MAIL_FROM") }),
       log: (msg, meta) => console.log(JSON.stringify({ level: "WARNING", msg, ...meta })),
     });
     return json(200, out);
