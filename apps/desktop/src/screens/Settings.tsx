@@ -68,9 +68,9 @@ function Connection({ cfg, save }: SP) {
     <form className="form-grid" onSubmit={(e) => { e.preventDefault(); void save({ supabase_url: url.trim(), ...(anon ? { supabase_anon_key: anon.trim() } : {}) }); setAnon(""); }}>
       <div className="field"><label htmlFor="su">URL do projeto Supabase</label>
         <input id="su" className="input mono" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
-      <div className="field"><label htmlFor="sk">Chave pública (anon)</label>
+      <div className="field"><label htmlFor="sk">Chave publicável (sb_publishable_… ou anon legada)</label>
         <input id="sk" className="input mono" type="password" placeholder={cfg.supabase_anon_key || "não definida"} value={anon} onChange={(e) => setAnon(e.target.value)} autoComplete="off" />
-        <span className="hint">Exibida mascarada. Deixe em branco para manter. A service_role é recusada.</span></div>
+        <span className="hint">Exibida mascarada. Deixe em branco para manter. Chaves secretas (sb_secret_… ou service_role) são recusadas.</span></div>
       <p className="muted small">Alterar a conexão encerra a sessão atual do backoffice.</p>
       <div><button className="btn btn-primary">Salvar</button></div>
     </form>

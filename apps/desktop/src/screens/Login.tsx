@@ -39,10 +39,10 @@ export function Login({ status, onChange }: Props) {
         <form className="stack" onSubmit={(e: FormEvent) => { e.preventDefault(); void run(async () => {
           setCfg(await call<AppConfig>("config_update", { patch: { supabase_url: url.trim(), supabase_anon_key: anon.trim() } }));
         }); }}>
-          <p className="muted small">Use a URL do projeto e a chave <strong>pública (anon)</strong>. A chave service_role é recusada.</p>
+          <p className="muted small">Use a URL do projeto e a chave <strong>publicável</strong> (<span className="mono">sb_publishable_…</span> ou a anon legada). Chaves secretas (<span className="mono">sb_secret_…</span> ou service_role) são recusadas.</p>
           <div className="field"><label htmlFor="u">URL do projeto</label>
             <input id="u" className="input mono" placeholder="https://<projeto>.supabase.co" value={url} onChange={(e) => setUrl(e.target.value)} required /></div>
-          <div className="field"><label htmlFor="k">Chave pública (anon)</label>
+          <div className="field"><label htmlFor="k">Chave publicável (sb_publishable_… ou anon legada)</label>
             <input id="k" className="input mono" type="password" autoComplete="off" value={anon} onChange={(e) => setAnon(e.target.value)} required /></div>
           {err && <div className="notice" data-tone="danger" role="alert" id="login-err">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>Salvar conexão</button>
