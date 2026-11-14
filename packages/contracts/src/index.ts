@@ -81,29 +81,93 @@ export type SubmitResult = { request_id: string; public_ref: string; status: Req
 
 export type FieldError = { field: string | null; code: string };
 
-/** Mensagens para os códigos estáveis devolvidos pelo backend (message do erro). */
+/**
+ * Mensagens para os códigos estáveis devolvidos pelo backend (message do erro).
+ * Cobre todos os códigos de `supabase/migrations` e `supabase/functions` (verificado em index.test.ts).
+ */
 export const ERROR_MESSAGE: Record<string, string> = {
+  // Autenticação e permissão
   UNAUTHENTICATED: "Sessão expirada. Entre novamente.",
   FORBIDDEN: "Seu acesso não permite esta ação ou está desativado.",
   MFA_REQUIRED: "Confirme o código do autenticador para continuar.",
+  NOT_AN_OPERATOR: "Seu usuário não está ativo como operador. Fale com um administrador.",
+  CANNOT_CHANGE_SELF: "Você não pode alterar o seu próprio acesso.",
+  UNAUTHORIZED: "Chamada não autorizada.",
+  // Envio de solicitação
+  IDEMPOTENCY_KEY_REQUIRED: "Não foi possível identificar este envio. Recarregue a página e tente de novo.",
   RATE_LIMITED: "Muitas solicitações em pouco tempo. Aguarde um minuto.",
   DUPLICATE_REQUEST: "Já existe uma solicitação em andamento com estes mesmos dados.",
   FORM_NOT_CONFIGURED: "O formulário ainda não foi configurado pelo backoffice.",
   FORM_VERSION_OUTDATED: "O formulário foi atualizado. Recarregue a página.",
+  FORM_DEFINITION_INVALID: "A definição do formulário é inválida e não foi publicada.",
   PAYLOAD_INVALID: "Revise os campos destacados.",
   PAYLOAD_TOO_LARGE: "Os dados enviados excedem o tamanho permitido.",
   OWNER_NOT_ALLOWED: "Proprietário do cliente não permitido.",
+  // Acompanhamento e decisões do backoffice
   NOT_CANCELLABLE: "Esta solicitação já está em processamento e não pode ser cancelada.",
   NOT_FOUND: "Registro não encontrado.",
+  NOT_FAILED: "Só é possível reenfileirar solicitações que estão em falha.",
   PII_EXPIRED: "Os dados desta solicitação expiraram pela política de retenção.",
   ADHESION_NUMBER_REQUIRED: "Informe o número de adesão.",
   SIDE_EFFECT_STARTED: "A proposta pode já ter sido criada no Consig; confirme manualmente.",
   INVALID_TRANSITION: "Mudança de estado não permitida.",
+  INVALID_RESOLUTION: "Decisão inválida para esta solicitação.",
   NOT_AWAITING_CONFIRMATION: "A solicitação não está aguardando confirmação.",
+  JOB_NOT_FOUND: "Execução não encontrada.",
+  JOB_NOT_ACTIVE: "Esta execução já foi encerrada ou a reserva expirou.",
+  // Convite de membros (Edge Function admin-invite)
   ALREADY_REGISTERED: "Este e-mail já está cadastrado.",
   INVALID_INPUT: "Dados inválidos.",
+  INVITE_FAILED: "Não foi possível enviar o convite agora. Tente novamente em instantes.",
+  REGISTER_FAILED: "O convite foi enviado, mas o cadastro do membro não foi concluído. Avise o responsável técnico.",
+  // Infraestrutura
+  METHOD_NOT_ALLOWED: "Operação não suportada.",
+  DISPATCH_FAILED: "Falha no envio de e-mails. O envio será tentado novamente.",
   NETWORK: "Sem conexão com o servidor. Tente novamente.",
+  UNKNOWN: "Não foi possível concluir a operação.",
 };
+
+/**
+ * Motivos gravados em `proposal_requests.status_reason` / `automation_jobs.error_code`
+ * (banco, motor RPA e app desktop). Texto livre (observações do backoffice) não tem rótulo.
+ */
+export const STATUS_REASON_LABEL: Record<string, string> = {
+  // Banco
+  LEASE_EXPIRED: "Reserva expirada; devolvida à fila.",
+  PII_EXPIRED: "Dados pessoais expirados pela política de retenção.",
+  PII_MISSING: "Dados pessoais indisponíveis para processamento.",
+  REQUEUED: "Reenfileirada pelo backoffice.",
+  RESOLVED_BY_BACKOFFICE: "Resolvida pelo backoffice.",
+  // Motor RPA
+  ENGINE_ERROR: "Erro no motor de automação.",
+  WORKFLOW_NOT_READY: "Fluxo do Consig ainda não implementado.",
+  SESSION_UNAVAILABLE: "Sessão do Consig indisponível; requer login humano.",
+  BROWSER_MISSING: "Google Chrome não encontrado no computador do backoffice.",
+  STEP_TIMEOUT: "Uma etapa excedeu o tempo limite.",
+  STEP_CRASHED: "Uma etapa falhou inesperadamente.",
+  INVALID_JOB_DATA: "Os dados da solicitação não atendem ao que o processo exige.",
+  JOB_CANCELLED: "Execução cancelada.",
+  HOST_REJECTED_SIDE_EFFECT: "O app não confirmou o ponto sem retorno; nada foi enviado.",
+  UNEXPECTED_SCREEN: "Tela não prevista; requer confirmação humana.",
+  NO_RESULT: "O processo terminou sem número de adesão; requer confirmação humana.",
+  NEEDS_HUMAN: "Requer confirmação humana.",
+  ENGINE_BUSY: "Motor ocupado com outra execução.",
+  CONTRACT_MISMATCH: "Versão do motor incompatível com o app.",
+  AI_RUNTIME_MISSING: "Runtime da IA local não instalado.",
+  MODEL_NOT_IN_MANIFEST: "Modelo de IA fora da lista aprovada.",
+  // App desktop
+  ENGINE_CRASHED: "O motor parou durante a execução; nada foi enviado.",
+  ENGINE_CRASHED_AFTER_SIDE_EFFECT: "O motor parou depois do ponto sem retorno; confirme no Consig.",
+  ENGINE_UNAVAILABLE: "Motor de automação indisponível.",
+  ENGINE_TIMEOUT: "O motor não respondeu a tempo.",
+  ENGINE_EXITED: "O motor foi encerrado.",
+};
+
+/** Rótulo do motivo quando ele é um código conhecido; `null` para texto livre ou código novo. */
+export function statusReasonLabel(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  return STATUS_REASON_LABEL[reason] ?? null;
+}
 
 export const FIELD_ERROR_MESSAGE: Record<string, string> = {
   REQUIRED: "Campo obrigatório.",
@@ -126,11 +190,28 @@ export const FIELD_ERROR_MESSAGE: Record<string, string> = {
 
 export type ApiError = { code: string; message: string; fields: FieldError[]; detail?: string };
 
+/**
+ * Códigos técnicos do PostgREST/Postgres que não são erros de negócio (SQLSTATE ≠ P0001), mas que a
+ * interface precisa tratar: JWT expirado/inválido e permissão negada pelo banco.
+ */
+const TRANSPORT_CODE: Record<string, string> = {
+  PGRST301: "UNAUTHENTICATED", // JWT expirado
+  PGRST302: "UNAUTHENTICATED", // sem credencial
+  PGRST303: "UNAUTHENTICATED", // JWT inválido
+  "42501": "FORBIDDEN", // insufficient_privilege
+};
+
 /** Converte o erro do PostgREST/supabase-js no formato do contrato. */
 export function toApiError(err: unknown): ApiError {
   const e = (err ?? {}) as { message?: string; details?: string | null; code?: string; name?: string };
   const raw = e.message ?? "";
-  const code = /^[A-Z][A-Z0-9_]+$/.test(raw) ? raw : e.name === "TypeError" || /fetch/i.test(raw) ? "NETWORK" : "UNKNOWN";
+  const code = /^[A-Z][A-Z0-9_]+$/.test(raw)
+    ? raw
+    : e.code && TRANSPORT_CODE[e.code]
+      ? TRANSPORT_CODE[e.code]
+      : e.name === "TypeError" || e.name === "FunctionsFetchError" || /fetch|network/i.test(raw)
+        ? "NETWORK"
+        : "UNKNOWN";
   let fields: FieldError[] = [];
   if (code === "PAYLOAD_INVALID" && e.details) {
     try {
@@ -141,9 +222,10 @@ export function toApiError(err: unknown): ApiError {
   }
   return {
     code,
-    message: ERROR_MESSAGE[code] ?? "Não foi possível concluir a operação.",
+    message: ERROR_MESSAGE[code] ?? ERROR_MESSAGE.UNKNOWN,
     fields,
-    detail: code === "PAYLOAD_INVALID" ? undefined : (e.details ?? undefined),
+    // Detalhe só para códigos de negócio (ex.: referência em DUPLICATE_REQUEST); nunca texto técnico.
+    detail: code === raw && code !== "PAYLOAD_INVALID" ? (e.details ?? undefined) : undefined,
   };
 }
 

@@ -23,6 +23,10 @@ Commits comuns nunca viram produção. A versão da tag precisa ser igual à de 
 ## No aplicativo
 
 - Verifica ao iniciar e a cada 6 h; mostra versão instalada e disponível (Painel e Configurações → Atualizações).
+- **Aviso visual:** a interface consulta `update_check` ao abrir e escuta o evento `update-available` (emitido pelo
+  Rust a cada verificação). Com versão nova aparece uma faixa no topo (“Versão X disponível”, botão **Ver
+  atualização** → Configurações → Atualizações, que já consulta a versão e as notas) e um marcador em
+  “Configurações”. O aviso pode ser dispensado até surgir outra versão; ele **não** instala nada.
 - Instalação **sempre** iniciada pelo usuário, nunca durante uma proposta em execução; a fila é pausada,
   o pacote é baixado, a **assinatura é verificada com a chave pública embutida** e só então instalado; o app reinicia.
 - Assinatura inválida/ausente → instalação recusada (`UPDATE_INSTALL_FAILED`), nada muda.

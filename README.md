@@ -22,7 +22,8 @@ executa as propostas com um **motor RPA** e, só em situações excepcionais, um
 
 [Arquitetura](docs/ARCHITECTURE.md) · [Contrato de API](docs/API_CONTRACT.md) · [Banco](docs/DATABASE_SCHEMA.md) ·
 [Segurança](docs/SECURITY.md) · [LGPD](docs/LGPD.md) · [Motor RPA](docs/RPA_ENGINE.md) · [IA local](docs/LOCAL_AI.md) ·
-[Atualizações](docs/UPDATE_SYSTEM.md) · [Roadmap e pendências](docs/DEVELOPMENT_ROADMAP.md) · [Changelog](CHANGELOG.md)
+[Atualizações](docs/UPDATE_SYSTEM.md) · [Acessibilidade](docs/ACCESSIBILITY.md) ·
+[Roadmap e pendências](docs/DEVELOPMENT_ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 ## Desenvolvimento
 
@@ -33,6 +34,7 @@ pnpm install
 pnpm --filter @fic/supabase test        # banco (PGlite) + Edge Functions + fila ponta a ponta (sobe o motor; precisa do uv)
 pnpm --filter @fic/contracts test
 pnpm --filter @fic/portal test
+pnpm --filter @fic/desktop test         # interface do desktop (IPC do Tauri simulado)
 cd services/engine && uv sync && uv run pytest -q
 cd apps/desktop/src-tauri && cargo test # precisa de apps/desktop/dist/index.html e do sidecar placeholder, como no CI
 ```

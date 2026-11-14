@@ -79,7 +79,7 @@ jobs:
       - name: Testes antes de publicar
         shell: bash
         run: |
-          pnpm --filter @fic/supabase --filter @fic/contracts --filter @fic/portal test
+          pnpm --filter @fic/supabase --filter @fic/contracts --filter @fic/portal --filter @fic/desktop test
           (cd services/engine && uv sync --frozen && uv run pytest -q)
           mkdir -p apps/desktop/dist && echo '<!doctype html>' > apps/desktop/dist/index.html
           (cd apps/desktop/src-tauri && cargo test)

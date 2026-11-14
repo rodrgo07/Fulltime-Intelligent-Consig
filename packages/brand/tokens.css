@@ -53,10 +53,15 @@
   --bg-sunken: var(--black);
   --bg-hover: var(--graphite-800);
   --line: var(--graphite-700);
-  --line-strong: var(--gray-600);
+  /* Bordas de controles: ≥ 3:1 sobre o fundo (WCAG 1.4.11). */
+  --line-strong: var(--gray-500);
   --text: #f2f2f3;
   --text-muted: var(--gray-400);
-  --text-faint: var(--gray-500);
+  /* Texto: ≥ 4.5:1 sobre bg, bg-raised, bg-sunken e bg-hover (WCAG 1.4.3) — verificado em contrast.test.ts. */
+  --text-faint: #868a90;
+  --state-success: #5ca97a;
+  --state-danger: #e06a5e;
+  --state-attention: #c08a2b;
   --accent: var(--white);
   --accent-text: var(--black);
   --focus: var(--white);
@@ -70,10 +75,13 @@
   --bg-sunken: var(--gray-100);
   --bg-hover: var(--gray-100);
   --line: var(--gray-200);
-  --line-strong: var(--gray-400);
+  --line-strong: #80848a;
   --text: var(--black);
   --text-muted: var(--gray-600);
-  --text-faint: var(--gray-500);
+  --text-faint: #5f6369;
+  --state-success: #2a6e45;
+  --state-danger: #b03a30;
+  --state-attention: #8a5f12;
   --accent: var(--black);
   --accent-text: var(--white);
   --focus: var(--black);
@@ -138,12 +146,13 @@ body {
 .input {
   height: 38px; padding: 0 var(--space-3); width: 100%;
   font: 400 14px var(--font-sans); color: var(--text);
-  background: var(--bg-sunken); border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg-sunken); border: 1px solid var(--line-strong); border-radius: var(--radius);
   transition: border-color var(--dur-fast) var(--ease);
 }
-.input:hover { border-color: var(--line-strong); }
-.input:focus { outline: none; border-color: var(--focus); }
-.input[aria-invalid="true"] { border-color: var(--state-danger); }
+.input:hover { border-color: var(--text-muted); }
+/* Foco sempre visível e espesso (2 px), também em clique: o campo ativo precisa ser óbvio. */
+.input:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
+.input[aria-invalid="true"] { border-color: var(--state-danger); border-width: 2px; }
 
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {
@@ -161,4 +170,29 @@ body {
 .notice[data-tone="attention"] { border-color: var(--state-attention); color: var(--text); }
 .notice[data-tone="success"] { border-color: var(--state-success); color: var(--text); }
 
-.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* Link "Pular para o conteúdo": invisível até receber foco pelo teclado (WCAG 2.4.1). */
+.skip-link {
+  position: absolute; left: var(--space-3); top: var(--space-3); z-index: 100; transform: translateY(-200%);
+  background: var(--accent); color: var(--accent-text); padding: var(--space-2) var(--space-4);
+  font: 500 13px var(--font-sans); text-decoration: none;
+}
+.skip-link:focus { transform: none; }
+[tabindex="-1"]:focus { outline: none; }
+
+/* Estados de tela: carregando, erro, vazio. */
+.state { display: grid; gap: var(--space-2); justify-items: start; padding: var(--space-5); border: var(--hairline); background: var(--bg-raised); }
+.state[data-tone="danger"] { border-left: 2px solid var(--state-danger); }
+.state-title { margin: 0; font-weight: 600; font-size: 14px; color: var(--text); }
+.state-text { margin: 0; color: var(--text-muted); }
+.state-loading { display: flex; align-items: center; gap: var(--space-3); color: var(--text-muted); border: 0; background: none; padding: var(--space-4) 0; }
+.spinner {
+  width: 14px; height: 14px; border: 2px solid var(--line-strong); border-top-color: var(--text);
+  border-radius: 50%; animation: spin 0.9s linear infinite; flex: none;
+}
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

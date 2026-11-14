@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { FIELD_ERROR_MESSAGE, normalizeFieldValue, type FieldError, type FormField } from "@fic/contracts";
 
 type Props = {
@@ -22,10 +22,18 @@ const inputMode: Partial<Record<FormField["type"], "numeric" | "decimal" | "emai
  */
 export function DynamicForm({ fields, busy, serverErrors, onSubmit, submitLabel = "Enviar solicitação" }: Props) {
   const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const [values, setValues] = useState<Record<string, string>>({});
 
   const errorFor = (key: string) => serverErrors.find((e) => e.field === key);
   const general = serverErrors.filter((e) => !e.field || !fields.some((f) => f.key === e.field));
+  const hasRequired = fields.some((f) => f.required);
+
+  // Erros do backend: o foco vai para o primeiro campo inválido (WCAG 3.3.1).
+  useEffect(() => {
+    if (serverErrors.length === 0) return;
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [serverErrors]);
 
   function handleSubmit(ev: FormEvent) {
     ev.preventDefault();
@@ -38,7 +46,8 @@ export function DynamicForm({ fields, busy, serverErrors, onSubmit, submitLabel 
   }
 
   return (
-    <form className="dyn-form" onSubmit={handleSubmit} noValidate={false} aria-busy={busy}>
+    <form className="dyn-form" onSubmit={handleSubmit} noValidate={false} aria-busy={busy} ref={formRef}>
+      {hasRequired && <p className="hint">Campos marcados com <span aria-hidden="true">*</span> são obrigatórios.</p>}
       {fields.map((f) => {
         const id = `${formId}-${f.key}`;
         const err = errorFor(f.key);
@@ -47,7 +56,7 @@ export function DynamicForm({ fields, busy, serverErrors, onSubmit, submitLabel 
           name: f.key,
           required: f.required,
           "aria-invalid": err ? true : undefined,
-          "aria-describedby": err ? `${id}-err` : f.help ? `${id}-hint` : undefined,
+          "aria-describedby": [err ? `${id}-err` : null, f.help ? `${id}-hint` : null].filter(Boolean).join(" ") || undefined,
           value: values[f.key] ?? "",
           onChange: (e: { target: { value: string } }) => setValues((s) => ({ ...s, [f.key]: e.target.value })),
           disabled: busy,
@@ -79,9 +88,9 @@ export function DynamicForm({ fields, busy, serverErrors, onSubmit, submitLabel 
                 spellCheck={false}
               />
             )}
-            {f.help && !err && <span className="hint" id={`${id}-hint`}>{f.help}</span>}
+            {f.help && <span className="hint" id={`${id}-hint`}>{f.help}</span>}
             {err && (
-              <span className="error" id={`${id}-err`} role="alert">
+              <span className="error" id={`${id}-err`}>
                 {FIELD_ERROR_MESSAGE[err.code] ?? "Valor inválido."}
               </span>
             )}

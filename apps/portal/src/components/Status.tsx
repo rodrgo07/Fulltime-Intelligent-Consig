@@ -8,7 +8,11 @@ export function Status({ status }: { status: RequestStatus }) {
   );
 }
 
+const TZ = "America/Sao_Paulo";
+
 export const fmtDateTime = (iso: string | null) =>
   iso
-    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(iso))
+    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: TZ }).format(new Date(iso))
     : "—";
+
+export const fmtTime = (d: Date) => new Intl.DateTimeFormat("pt-BR", { timeStyle: "short", timeZone: TZ }).format(d);

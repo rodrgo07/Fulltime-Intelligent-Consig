@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { call, errorMessage, fmt, type AppConfig, type AppInfo } from "../lib/ipc";
+import { useCallback, useEffect, useState } from "react";
+import { ErrorState, Loading } from "../components/States";
+import { call, errorMessage, fmt, type AppConfig, type AppInfo, type UpdateCheck } from "../lib/ipc";
 
 type AiStatus = {
   state: string; enabled: boolean; model: string | null; runtime_version: string; runtime_installed: boolean; loaded: boolean;
@@ -10,13 +11,19 @@ type AiStatus = {
 type LogLine = { timestamp?: string; level?: string; target?: string; fields?: { message?: string } };
 
 const TABS = ["Conexão", "Motor RPA", "IA local", "Inicialização", "Atualizações", "Logs", "Instalação"] as const;
+export type SettingsTab = (typeof TABS)[number];
 
-export function Settings({ info }: { info: AppInfo | null }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Conexão");
+export function Settings({ info, tab, onTabChange }: { info: AppInfo | null; tab: SettingsTab; onTabChange: (t: SettingsTab) => void }) {
+  const setTab = onTabChange;
   const [cfg, setCfg] = useState<AppConfig | null>(null);
+  const [cfgError, setCfgError] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tone: string; text: string } | null>(null);
 
-  useEffect(() => void call<AppConfig>("config_get").then(setCfg), []);
+  const loadCfg = useCallback(() => {
+    setCfgError(null);
+    call<AppConfig>("config_get").then(setCfg).catch((e) => setCfgError(errorMessage(e)));
+  }, []);
+  useEffect(loadCfg, [loadCfg]);
 
   async function save(patch: Partial<AppConfig> | Record<string, unknown>) {
     setMsg(null);
@@ -31,10 +38,12 @@ export function Settings({ info }: { info: AppInfo | null }) {
   return (
     <section className="screen">
       <header className="screen-head"><div><p className="eyebrow">Configurações</p><h1>{tab}</h1></div></header>
-      <nav className="filters" aria-label="Seções">
-        {TABS.map((t) => <button key={t} aria-pressed={tab === t} onClick={() => { setTab(t); setMsg(null); }}>{t}</button>)}
+      <nav className="filters" aria-label="Seções das configurações">
+        {TABS.map((t) => <button key={t} aria-current={tab === t ? "true" : undefined} onClick={() => { setTab(t); setMsg(null); }}>{t}</button>)}
       </nav>
-      {msg && <div className="notice" data-tone={msg.tone} role="status">{msg.text}</div>}
+      {msg && <div className="notice" data-tone={msg.tone} role={msg.tone === "danger" ? "alert" : "status"}>{msg.text}</div>}
+      {cfgError && !cfg && <ErrorState title="Não foi possível ler as configurações" message={cfgError} onRetry={loadCfg} />}
+      {!cfg && !cfgError && <Loading label="Carregando configurações…" />}
       {cfg && (
         <div className="settings-body">
           {tab === "Conexão" && <Connection cfg={cfg} save={save} />}
@@ -59,9 +68,9 @@ function Connection({ cfg, save }: SP) {
     <form className="form-grid" onSubmit={(e) => { e.preventDefault(); void save({ supabase_url: url.trim(), ...(anon ? { supabase_anon_key: anon.trim() } : {}) }); setAnon(""); }}>
       <div className="field"><label htmlFor="su">URL do projeto Supabase</label>
         <input id="su" className="input mono" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
-      <div className="field"><label htmlFor="sk">Chave pública (anon)</label>
+      <div className="field"><label htmlFor="sk">Chave publicável (sb_publishable_… ou anon legada)</label>
         <input id="sk" className="input mono" type="password" placeholder={cfg.supabase_anon_key || "não definida"} value={anon} onChange={(e) => setAnon(e.target.value)} autoComplete="off" />
-        <span className="hint">Exibida mascarada. Deixe em branco para manter. A service_role é recusada.</span></div>
+        <span className="hint">Exibida mascarada. Deixe em branco para manter. Chaves secretas (sb_secret_… ou service_role) são recusadas.</span></div>
       <p className="muted small">Alterar a conexão encerra a sessão atual do backoffice.</p>
       <div><button className="btn btn-primary">Salvar</button></div>
     </form>
@@ -87,7 +96,7 @@ function Engine({ cfg, save }: SP) {
         <button className="btn" onClick={() => void call("consig_session_open").catch((e) => setErr(errorMessage(e)))}>Abrir Consig no navegador controlado</button>
         <button className="btn" onClick={() => void call("engine_restart").catch((e) => setErr(errorMessage(e)))}>Reiniciar motor</button>
       </div>
-      {err && <div className="notice" data-tone="danger">{err}</div>}
+      {err && <div className="notice" data-tone="danger" role="alert">{err}</div>}
       <div className="notice" data-tone="attention">
         O fluxo de geração de propostas no Consig ainda não foi mapeado. O motor está pronto (execução, sessão única, timeouts,
         recuperação e ponto sem retorno), mas não reserva solicitações até que o fluxo real seja implementado.
@@ -111,6 +120,7 @@ function Ai({ cfg, save }: SP) {
     <div className="stack">
       <div className="notice">Componente opcional e local: só é carregado quando o RPA encontra uma situação não prevista, sugere uma ação de uma
         lista fechada e é descarregado em seguida. Nunca envia dados para APIs externas. Desativado por padrão.</div>
+      {!st && !err && <Loading label="Consultando a IA local…" />}
       {st && (
         <dl className="kv">
           <div><dt>Estado</dt><dd>{st.state}{st.installing ? " · instalando…" : ""}</dd></div>
@@ -145,7 +155,7 @@ function Ai({ cfg, save }: SP) {
           onClick={async () => { setBusy(true); try { await call("ai_pull", { model: ai.model }); } catch (e) { setErr(errorMessage(e)); } finally { setBusy(false); void load(); } }}>
           {busy ? "Baixando modelo…" : "Baixar modelo selecionado"}</button>
       </div>
-      {err && <div className="notice" data-tone="danger">{err}</div>}
+      {err && <div className="notice" data-tone="danger" role="alert">{err}</div>}
     </div>
   );
 }
@@ -164,19 +174,31 @@ function Startup({ cfg, save }: SP) {
 }
 
 function Updates({ info }: { info: AppInfo | null }) {
-  const [res, setRes] = useState<{ current: string; available: string | null; notes?: string | null } | null>(null);
+  const [res, setRes] = useState<UpdateCheck | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  const check = useCallback(async () => {
+    setErr(null);
+    setChecking(true);
+    try { setRes(await call<UpdateCheck>("update_check")); } catch (e) { setErr(errorMessage(e)); } finally { setChecking(false); }
+  }, []);
+  // Ao abrir a aba já mostra a versão disponível (vinda do aviso de atualização, por exemplo).
+  useEffect(() => void check(), [check]);
+
   return (
     <div className="stack">
       <dl className="kv">
         <div><dt>Versão instalada</dt><dd className="mono">{info?.version}</dd></div>
         <div><dt>Canal</dt><dd className="mono">{info?.channel}</dd></div>
-        <div><dt>Versão disponível</dt><dd className="mono">{res ? res.available ?? "nenhuma" : "—"}</dd></div>
+        <div><dt>Versão disponível</dt><dd className="mono" aria-live="polite">
+          {checking ? "verificando…" : res ? res.available ? <span className="status" data-tone="attention">{res.available}</span> : "nenhuma" : "—"}
+        </dd></div>
       </dl>
-      {res?.notes && <pre className="notes">{res.notes}</pre>}
+      {res?.notes && <><h2 className="section-title">Novidades</h2><pre className="notes">{res.notes}</pre></>}
       <div className="btn-row">
-        <button className="btn" disabled={busy} onClick={async () => { setErr(null); try { setRes(await call("update_check")); } catch (e) { setErr(errorMessage(e)); } }}>Verificar agora</button>
+        <button className="btn" disabled={busy || checking} onClick={() => void check()}>{checking ? "Verificando…" : "Verificar agora"}</button>
         <button className="btn btn-primary" disabled={busy || !res?.available}
           onClick={async () => {
             if (!window.confirm(`Instalar a versão ${res?.available}? O app será reiniciado.`)) return;
@@ -186,16 +208,19 @@ function Updates({ info }: { info: AppInfo | null }) {
       </div>
       <p className="muted small">Somente releases assinadas são aceitas: a assinatura é verificada com a chave pública embutida antes da instalação.
         A instalação nunca ocorre durante a execução de uma proposta.</p>
-      {err && <div className="notice" data-tone="danger">{err}</div>}
+      {err && <div className="notice" data-tone="danger" role="alert">{err}</div>}
     </div>
   );
 }
 
 function Logs({ cfg, save }: SP) {
   const [level, setLevel] = useState("INFO");
-  const [lines, setLines] = useState<LogLine[]>([]);
+  const [lines, setLines] = useState<LogLine[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
-    const load = () => call<LogLine[]>("logs_tail", { level, limit: 400 }).then(setLines).catch(() => setLines([]));
+    const load = () => call<LogLine[]>("logs_tail", { level, limit: 400 })
+      .then((l) => { setLines(l); setErr(null); })
+      .catch((e) => setErr(errorMessage(e)));
     void load();
     const t = window.setInterval(load, 3000);
     return () => window.clearInterval(t);
@@ -213,13 +238,16 @@ function Logs({ cfg, save }: SP) {
           </select></label>
       </div>
       <p className="muted small">Logs técnicos com identificadores de operação; dados pessoais são omitidos/redigidos. Retenção local: 30 dias.</p>
-      <div className="log-view mono" role="log">
-        {lines.map((l, i) => (
+      {err && <div className="notice" data-tone="danger" role="alert">Não foi possível ler os logs: {err}</div>}
+      {/* aria-live off: atualiza a cada 3 s; anunciar cada linha tornaria o leitor de tela inutilizável. */}
+      <div className="log-view mono" role="log" aria-label="Logs técnicos" aria-live="off" tabIndex={0}>
+        {lines === null && !err && <span className="muted">Carregando…</span>}
+        {lines?.map((l, i) => (
           <div key={i} className="log-line" data-level={l.level}>
             <span className="muted">{l.timestamp ? fmt(l.timestamp) : ""}</span> <b>{l.level}</b> <span className="muted">{l.target}</span> {l.fields?.message}
           </div>
         ))}
-        {lines.length === 0 && <span className="muted">Sem registros.</span>}
+        {lines?.length === 0 && <span className="muted">Nenhum registro neste nível.</span>}
       </div>
     </div>
   );
@@ -227,8 +255,14 @@ function Logs({ cfg, save }: SP) {
 
 function Install() {
   const [d, setD] = useState<Record<string, unknown> | null>(null);
-  useEffect(() => void call<Record<string, unknown>>("diagnostics").then(setD), []);
-  if (!d) return <p className="muted">Carregando…</p>;
+  const [err, setErr] = useState<string | null>(null);
+  const load = useCallback(() => {
+    setErr(null);
+    call<Record<string, unknown>>("diagnostics").then(setD).catch((e) => setErr(errorMessage(e)));
+  }, []);
+  useEffect(load, [load]);
+  if (err) return <ErrorState title="Não foi possível obter o diagnóstico" message={err} onRetry={load} />;
+  if (!d) return <Loading label="Coletando diagnóstico…" />;
   const yes = (v: unknown) => (v === true ? "sim" : v === false ? "não" : v == null ? "—" : String(v));
   return (
     <dl className="kv">

@@ -45,6 +45,15 @@ Windows UI Automation/PyAutoGUI não são necessários enquanto o Consig for web
 
 Enquanto o passo 4 não existir, o motor responde `workflow_ready=false` e o desktop **não reserva** nada.
 
+## Login humano (tela “Abrir Consig” do desktop)
+
+O menu lateral do app tem a tela **Abrir Consig**, que chama `consig_session_open` (→ `session.open`) e mostra o
+estado da sessão (`worker_status.consig_session`), se o Chrome está instalado e se o endereço inicial está configurado.
+As instruções são **genéricas de propósito** — abrir o Chrome dedicado, entrar como faria manualmente, não fechar a
+janela; o app não lê nem guarda a senha. Nenhuma tela, campo ou etapa do Consig é descrita: quando o mapeamento
+(Bloco E) existir, as instruções podem ser detalhadas aqui e na tela. Sem `SessionProbe` real, a sessão aparece
+como “Aberta (verificação não mapeada)”.
+
 ## Execução local
 
 ```bash

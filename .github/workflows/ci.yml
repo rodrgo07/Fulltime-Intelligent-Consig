@@ -27,7 +27,10 @@ jobs:
         with:
           # Mudar o próprio CI roda todas as áreas (senão a correção do workflow não é exercitada).
           filters: |
-            js: ['apps/portal/**', 'apps/desktop/src/**', 'apps/desktop/src-tauri/tauri.conf.json', 'packages/**', 'pnpm-lock.yaml', '.github/workflows/ci.yml']
+            # Os testes JS também leem os códigos de erro do SQL, das Edge Functions, do motor e do Rust.
+            js: ['apps/portal/**', 'apps/desktop/src/**', 'apps/desktop/src-tauri/tauri.conf.json', 'apps/desktop/src-tauri/src/**',
+                 'packages/**', 'pnpm-lock.yaml', 'supabase/migrations/**', 'supabase/functions/**', 'services/engine/src/**',
+                 '.github/workflows/ci.yml']
             db: ['supabase/**', 'services/engine/src/**', 'services/engine/tests/fake_engine.py', 'services/engine/uv.lock', '.github/workflows/ci.yml']
             engine: ['services/engine/**', 'ialocal/manifest.json', 'packages/contracts/fixtures/**', '.github/workflows/ci.yml']
             desktop: ['apps/desktop/**', 'packages/contracts/fixtures/**', '.github/workflows/ci.yml']
@@ -43,7 +46,7 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @fic/contracts --filter @fic/portal --filter @fic/desktop typecheck
-      - run: pnpm --filter @fic/contracts --filter @fic/portal test
+      - run: pnpm --filter @fic/contracts --filter @fic/portal --filter @fic/desktop test
       - run: pnpm --filter @fic/portal build
         env:
           VITE_SUPABASE_URL: https://ci-placeholder.supabase.co

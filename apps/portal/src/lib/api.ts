@@ -24,8 +24,9 @@ export type RequestWithResult = ProposalRequestRow & { proposal_results: Proposa
 
 export function createApi(sb: SupabaseClient) {
   return {
+    // maybeSingle: perfil ausente/oculto pelo RLS (desativado) é `null`, não erro — erro é só falha real.
     myProfile: (uid: string) =>
-      wrap<Profile>(sb.from("profiles").select("id, role, display_name, active").eq("id", uid).single()),
+      wrap<Profile | null>(sb.from("profiles").select("id, role, display_name, active").eq("id", uid).maybeSingle()),
 
     myOperator: (uid: string) =>
       wrap<OperatorInfo | null>(sb.from("operators").select("id, operator_code, notification_email").eq("id", uid).maybeSingle()),
@@ -65,8 +66,10 @@ export function createApi(sb: SupabaseClient) {
         body: { email, display_name: displayName, role },
       });
       if (!error) return { ok: true, data };
-      const ctx = (error as { context?: Response }).context;
-      const body = ctx ? await ctx.json().catch(() => ({})) as { code?: string } : {};
+      // Sem resposta HTTP (FunctionsFetchError) = rede; com resposta, o corpo traz o código estável.
+      const ctx = (error as { context?: unknown }).context;
+      if (!(ctx instanceof Response)) return { ok: false, error: toApiError({ name: "FunctionsFetchError", message: "fetch" }) };
+      const body = await ctx.json().catch(() => ({})) as { code?: string };
       return { ok: false, error: toApiError({ message: body.code ?? "UNKNOWN" }) };
     },
 
