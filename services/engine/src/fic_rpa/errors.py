@@ -58,22 +58,12 @@ class HostRejected(EngineError):
     retryable = True
 
 
-@dataclass
-class Observation:
-    """Estado observado da tela. Pode conter dados pessoais: nunca logar, só usar localmente."""
-
-    summary: str
-    visible_text: str = ""
-    screenshot_png: bytes | None = None
-    extra: dict[str, Any] = field(default_factory=dict)
-
-
 class UnexpectedScreen(EngineError):
-    """Tela/mensagem não prevista pelas regras determinísticas. Pode ser levada à IA local."""
+    """Tela/mensagem não prevista pelas regras determinísticas: sempre vai para decisão humana."""
 
     code = "UNEXPECTED_SCREEN"
     retryable = False
 
-    def __init__(self, observation: Observation) -> None:
-        super().__init__(observation.summary)
-        self.observation = observation
+    def __init__(self, summary: str) -> None:
+        # Só um resumo técnico, sem texto da tela (pode conter dados pessoais).
+        super().__init__(summary)

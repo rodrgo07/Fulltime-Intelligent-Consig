@@ -4,16 +4,15 @@ import asyncio
 
 import pytest
 from conftest import (
-    BoomStep, FakeAdvisor, FlakyScreenStep, OkStep, Recorder, ResultStep, SideEffectStep, SlowStep, params, wf,
+    BoomStep, FlakyScreenStep, OkStep, Recorder, ResultStep, SideEffectStep, SlowStep, params, wf,
 )
 
 from fic_rpa.errors import EngineError
 from fic_rpa.executor import JobExecutor
-from fic_rpa.workflow import Recovery
 
 
-async def run(rec: Recorder, workflow, advisor=None, p=None) -> JobExecutor:
-    ex = JobExecutor(rec.emit, rec.confirm_side_effect, advisor=advisor, heartbeat_s=10, wait_and_retry_s=0)
+async def run(rec: Recorder, workflow, p=None) -> JobExecutor:
+    ex = JobExecutor(rec.emit, rec.confirm_side_effect, heartbeat_s=10)
     ex.start(p or params(), workflow, None)
     await ex.wait()
     return ex
@@ -55,42 +54,12 @@ async def test_crash_before_side_effect_is_failed(rec: Recorder) -> None:
     assert rec.last().data["error_code"] == "STEP_CRASHED"
 
 
-async def test_unexpected_screen_without_ai_goes_to_human(rec: Recorder) -> None:
-    await run(rec, wf(FlakyScreenStep(), ResultStep()))
+async def test_unexpected_screen_goes_to_human_without_retry(rec: Recorder) -> None:
+    step = FlakyScreenStep(failures=1)
+    await run(rec, wf(step, ResultStep()))
     assert rec.last().type == "escalated"
     assert rec.last().data["reason_code"] == "UNEXPECTED_SCREEN"
-
-
-async def test_ai_retry_suggestion_is_applied_by_deterministic_code(rec: Recorder) -> None:
-    step = FlakyScreenStep(failures=1)
-    advisor = FakeAdvisor(Recovery.RETRY_STEP)
-    await run(rec, wf(step, ResultStep()), advisor)
-    assert rec.last().type == "completed"
-    assert step.calls == 2 and advisor.calls == 1
-
-
-async def test_ai_never_retries_a_side_effect_step(rec: Recorder) -> None:
-    step = FlakyScreenStep(failures=1, side_effect=True)
-    await run(rec, wf(step, ResultStep()), FakeAdvisor(Recovery.RETRY_STEP))
-    assert rec.last().type == "escalated"
-    assert step.calls == 1
-
-
-@pytest.mark.parametrize("advice", [
-    FakeAdvisor(Recovery.RETRY_STEP, confidence=0.5),   # confiança baixa
-    FakeAdvisor("delete_everything"),                    # ação fora da lista
-    FakeAdvisor(None),                                   # IA indisponível
-])
-async def test_untrusted_ai_advice_escalates(rec: Recorder, advice: FakeAdvisor) -> None:
-    await run(rec, wf(FlakyScreenStep(), ResultStep()), advice)
-    assert rec.last().type == "escalated"
-
-
-async def test_ai_recoveries_are_bounded(rec: Recorder) -> None:
-    step = FlakyScreenStep(failures=10)
-    await run(rec, wf(step, ResultStep()), FakeAdvisor(Recovery.WAIT_AND_RETRY))
-    assert rec.last().type == "escalated"
-    assert step.calls == JobExecutor.MAX_AI_RECOVERIES + 1
+    assert step.calls == 1  # nunca repete sozinho
 
 
 async def test_workflow_without_result_needs_human(rec: Recorder) -> None:

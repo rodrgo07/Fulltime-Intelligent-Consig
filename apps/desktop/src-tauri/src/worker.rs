@@ -61,7 +61,6 @@ async fn engine_supervisor(state: Arc<AppState>) {
                 backoff = 2;
                 *state.engine.write().await = Some(engine.clone());
                 state.status.write().await.engine_state = "ready".into();
-                let _ = apply_ai_config(&state).await;
                 state.wake.notify_one();
                 handle_engine_messages(&state, engine.clone(), rx).await;
                 *state.engine.write().await = None;
@@ -81,11 +80,6 @@ async fn engine_supervisor(state: Arc<AppState>) {
         }
         backoff = (backoff * 2).min(60);
     }
-}
-
-pub async fn apply_ai_config(state: &AppState) -> AppResult<Value> {
-    let ai = state.config.read().await.ai.clone();
-    state.engine().await?.call("ai.configure", serde_json::to_value(ai)?, 15).await
 }
 
 async fn handle_engine_messages(state: &Arc<AppState>, engine: Arc<Engine>, mut rx: mpsc::Receiver<EngineMsg>) {
@@ -332,7 +326,6 @@ async fn cycle(state: &Arc<AppState>, last_heartbeat: &mut u64) -> AppResult<()>
         let mut st = state.status.write().await;
         st.workflow_ready = health["workflow_ready"].as_bool().unwrap_or(false);
         st.consig_session = health["session"].as_str().unwrap_or("unknown").to_string();
-        st.ai_state = health["ai"].as_str().unwrap_or("unknown").to_string();
     }
     if !health["workflow_ready"].as_bool().unwrap_or(false) {
         block(state, "WORKFLOW_NOT_READY").await;

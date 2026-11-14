@@ -66,4 +66,14 @@ describe("App desktop", () => {
     expect(document.activeElement?.id).toBe("conteudo");
     expect(document.title).toBe("Abrir Consig · Fulltime Intelligent Consig");
   });
+
+  it("não há mais IA local na interface (painel e configurações)", async () => {
+    setup();
+    await pastIntro();
+    expect(screen.queryByText("IA local")).toBeNull();
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Principal" })).getByRole("button", { name: "Configurações" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Conexão" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "IA local" })).toBeNull();
+    expect(screen.queryByText(/Ollama/)).toBeNull();
+  });
 });

@@ -61,17 +61,6 @@ pub async fn config_update(app: AppHandle, state: S<'_>, patch: Value) -> AppRes
         if k == "supabase_anon_key" && v.as_str().is_some_and(|s| s.starts_with('•')) {
             continue;
         }
-        if k == "ai" {
-            if let (Some(dst), Some(src)) = (merged["ai"].as_object_mut(), v.as_object()) {
-                for (ak, av) in src {
-                    if !dst.contains_key(ak) {
-                        return Err(AppError::Code("UNKNOWN_SETTING"));
-                    }
-                    dst.insert(ak.clone(), av.clone());
-                }
-            }
-            continue;
-        }
         merged[k] = v;
     }
     let cfg: AppConfig = serde_json::from_value(merged).map_err(|_| AppError::Code("INVALID_INPUT"))?;
@@ -85,9 +74,6 @@ pub async fn config_update(app: AppHandle, state: S<'_>, patch: Value) -> AppRes
     if cfg.autostart != current.autostart {
         let al = app.autolaunch();
         let _ = if cfg.autostart { al.enable() } else { al.disable() };
-    }
-    if cfg.ai != current.ai {
-        let _ = worker::apply_ai_config(&state).await;
     }
     tracing::info!("configuração atualizada");
     state.wake.notify_one();
@@ -272,23 +258,6 @@ pub async fn engine_restart(state: S<'_>) -> AppResult<()> {
     Ok(())
 }
 
-#[tauri::command]
-pub async fn ai_status(state: S<'_>) -> AppResult<Value> {
-    state.engine().await?.call("ai.status", json!({}), 15).await
-}
-
-#[tauri::command]
-pub async fn ai_install(state: S<'_>) -> AppResult<Value> {
-    tracing::info!("instalação do runtime de IA solicitada");
-    state.engine().await?.call("ai.install_runtime", json!({}), 15).await
-}
-
-#[tauri::command]
-pub async fn ai_pull(state: S<'_>, model: String) -> AppResult<Value> {
-    let model = bounded(&model, 100)?;
-    state.engine().await?.call("ai.pull_model", json!({ "model": model }), 3600).await
-}
-
 // ---------------------------------------------------------------- logs e diagnóstico
 #[tauri::command]
 pub async fn logs_tail(state: S<'_>, level: Option<String>, limit: Option<usize>) -> AppResult<Vec<Value>> {
@@ -388,7 +357,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         auth_status, auth_login, auth_mfa_enroll, auth_mfa_verify, auth_logout,
         worker_status, worker_set_paused, dashboard, requests_list, request_detail,
         request_resolve, request_requeue, request_cancel,
-        consig_session_open, engine_restart, ai_status, ai_install, ai_pull,
+        consig_session_open, engine_restart,
         logs_tail, diagnostics, update_check, update_install
     ]
 }

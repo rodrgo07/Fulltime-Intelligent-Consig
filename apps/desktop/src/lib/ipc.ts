@@ -27,8 +27,6 @@ export const DESKTOP_MESSAGES: Record<string, string> = {
   UPDATE_CHECK_FAILED: "Não foi possível verificar atualizações.",
   UPDATE_INSTALL_FAILED: "A atualização foi recusada ou falhou. Nada foi alterado.",
   NO_UPDATE: "Nenhuma atualização disponível.",
-  MODEL_NOT_IN_MANIFEST: "Modelo fora da lista aprovada.",
-  AI_RUNTIME_MISSING: "Runtime da IA local não instalado.",
   CREDENTIAL_STORE_UNAVAILABLE: "Credential Manager do Windows indisponível.",
   INVALID_ID: "Identificador inválido.",
   UNKNOWN_SETTING: "Configuração desconhecida.",
@@ -40,7 +38,6 @@ export const DESKTOP_MESSAGES: Record<string, string> = {
   INVALID_POLL_INTERVAL: "Intervalo de consulta inválido (use de 10 a 600 segundos).",
   INVALID_SESSION_HOURS: "Validade da sessão inválida (use de 1 a 168 horas).",
   INVALID_LOG_LEVEL: "Nível de log inválido.",
-  INVALID_AI_LIMITS: "Limites da IA local inválidos. Revise RAM, CPU, timeout e confiança.",
   INVALID_STATUS: "Filtro de estado inválido.",
   // Motor RPA
   ENGINE_SPAWN_FAILED: "Não foi possível iniciar o motor RPA.",
@@ -103,7 +100,6 @@ export type WorkerStatus = {
   engine_version: string | null;
   workflow_ready: boolean;
   consig_session: string;
-  ai_state: string;
   supabase_reachable: boolean | null;
   last_cycle_at: number | null;
   last_error: string | null;
@@ -138,7 +134,6 @@ export type AppConfig = {
   supabase_url: string; supabase_anon_key: string; consig_start_url: string; poll_interval_s: number;
   log_level: "DEBUG" | "INFO" | "WARNING" | "ERROR"; autostart: boolean; start_minimized: boolean; intro_seen: boolean;
   session_max_hours: number; worker_paused: boolean;
-  ai: { enabled: boolean; model: string | null; timeout_s: number; min_free_ram_mb: number; max_cpu_percent: number; min_confidence: number };
 };
 
 export type AppInfo = { version: string; channel: string; identifier: string; data_dir: string; log_dir: string; intro_seen: boolean };

@@ -19,7 +19,7 @@ Windows UI Automation/PyAutoGUI não são necessários enquanto o Consig for web
 | `session.py` | sessão única do Consig; login **humano**; `SessionProbe` decide se está autenticado |
 | `workflow.py` | `Step`, `Workflow`, `StepContext`, `Recovery` |
 | `workflows/__init__.py` | registro de fluxos de produção — **vazio** até o mapeamento |
-| `executor.py` | execução com timeouts por etapa e por job, heartbeat, cancelamento, ponto sem retorno, IA |
+| `executor.py` | execução com timeouts por etapa e por job, heartbeat, cancelamento, ponto sem retorno |
 | `errors.py` | erros com códigos estáveis |
 | `logs.py` | JSON no stderr com redação de dados pessoais |
 | `app.py` | liga tudo e expõe os métodos RPC |
@@ -29,8 +29,7 @@ Windows UI Automation/PyAutoGUI não são necessários enquanto o Consig for web
 `step_started*` → `completed` | `failed(retryable?)` | `escalated(reason)`.
 - Erro **antes** do ponto sem retorno → `failed` (o banco re-enfileira até 3 tentativas se `retryable`).
 - Erro **depois** → sempre `escalated` (confirmação humana; nunca repetição automática).
-- `UnexpectedScreen` → IA (se habilitada) pode sugerir `retry_step`/`wait_and_retry` em etapa **sem** efeito,
-  no máximo 2 vezes; senão `escalated`.
+- `UnexpectedScreen` → `escalated` (confirmação humana); não há recuperação automática por IA.
 - Fluxo que termina sem `ProposalResult` → `escalated(NO_RESULT)`.
 
 ## Como adicionar o fluxo real (próximas etapas)

@@ -5,10 +5,9 @@ from typing import Any
 
 import pytest
 
-from fic_rpa.errors import Observation, UnexpectedScreen
-from fic_rpa.executor import Advice
+from fic_rpa.errors import UnexpectedScreen
 from fic_rpa.protocol import JobEvent, JobExecuteParams
-from fic_rpa.workflow import ProposalResult, Recovery, Step, StepContext, Workflow
+from fic_rpa.workflow import ProposalResult, Step, StepContext, Workflow
 
 # Etapas FICTÍCIAS usadas só nos testes do executor. Não representam o Consig.
 
@@ -40,7 +39,6 @@ class FlakyScreenStep(Step):
     """Mostra uma tela inesperada nas primeiras N execuções."""
 
     name = "tela_instavel"
-    allowed_recoveries = frozenset({Recovery.RETRY_STEP, Recovery.WAIT_AND_RETRY, Recovery.ESCALATE})
 
     def __init__(self, failures: int = 1, side_effect: bool = False) -> None:
         self.failures = failures
@@ -51,7 +49,7 @@ class FlakyScreenStep(Step):
     async def run(self, ctx: StepContext) -> None:
         self.calls += 1
         if self.calls <= self.failures:
-            raise UnexpectedScreen(Observation(summary="popup", visible_text="Aguarde..."))
+            raise UnexpectedScreen("popup")
 
 
 class SlowStep(Step):
@@ -95,44 +93,6 @@ class Recorder:
         return [e for e in self.events if e.type not in ("step_started", "heartbeat")][-1]
 
 
-class FakeAdvisor:
-    def __init__(self, action: Recovery | str | None, confidence: float = 0.95) -> None:
-        self.action = action
-        self.confidence = confidence
-        self.min_confidence = 0.8
-        self.calls = 0
-
-    async def advise(self, step: str, allowed: list[str], observation: Observation) -> Advice | None:
-        self.calls += 1
-        if self.action is None:
-            return None
-        return Advice(self.action, self.confidence, "teste")  # type: ignore[arg-type]
-
-
 @pytest.fixture
 def rec() -> Recorder:
     return Recorder()
-
-
-class FakeRuntime:
-    def __init__(self, reply: str = '{"situation":"carregando","action":"retry_step","confidence":0.9}') -> None:
-        self.running = False
-        self.reply = reply
-        self.starts = 0
-        self.stops = 0
-        self.delay = 0.0
-
-    async def start(self, ready_timeout: float = 60) -> None:
-        self.starts += 1
-        self.running = True
-
-    async def stop(self) -> None:
-        self.stops += 1
-        self.running = False
-
-    async def chat(self, model: str, prompt: str, images_b64: list[str], schema: dict[str, Any], timeout: float) -> str:
-        await asyncio.sleep(self.delay)
-        return self.reply
-
-    async def pull(self, model: str, timeout: float = 3600) -> None:
-        return None

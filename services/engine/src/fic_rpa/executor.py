@@ -6,8 +6,7 @@ Garantias:
    "ponto sem retorno" no banco. Sem confirmação, a etapa não roda.
 3. Depois do ponto sem retorno, qualquer problema vira "escalated" (confirmação humana); nunca
    há nova tentativa automática, para não gerar proposta duplicada.
-4. Etapas com efeito nunca são repetidas automaticamente, nem por sugestão da IA.
-5. A IA só sugere uma ação de uma lista fechada; quem executa é o código determinístico.
+4. Etapas nunca são repetidas automaticamente pelo executor: tela não prevista vai para decisão humana.
 """
 
 from __future__ import annotations
@@ -15,32 +14,17 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
 from . import logs
-from .errors import EngineError, HostRejected, JobCancelled, Observation, StepTimeout, UnexpectedScreen
+from .errors import EngineError, HostRejected, JobCancelled, StepTimeout, UnexpectedScreen
 from .protocol import JobEvent, JobExecuteParams
 from .session import ConsigSession
-from .workflow import ProposalResult, Recovery, Step, StepContext, Workflow
+from .workflow import ProposalResult, Step, StepContext, Workflow
 
 Emit = Callable[[JobEvent], Awaitable[None]]
 ConfirmSideEffect = Callable[[str, str], Awaitable[bool]]
 
-
-@dataclass
-class Advice:
-    action: Recovery
-    confidence: float
-    situation: str
-
-
-class Advisor(Protocol):
-    """Implementado por fic_ai. Retorna None quando a IA está desativada ou indisponível."""
-
-    min_confidence: float
-
-    async def advise(self, step: str, allowed: list[str], observation: Observation) -> Advice | None: ...
 
 
 class NeedsHuman(EngineError):
@@ -53,21 +37,15 @@ class NeedsHuman(EngineError):
 
 
 class JobExecutor:
-    MAX_AI_RECOVERIES = 2
-
     def __init__(
         self,
         emit: Emit,
         confirm_side_effect: ConfirmSideEffect,
-        advisor: Advisor | None = None,
         heartbeat_s: float = 30,
-        wait_and_retry_s: float = 5,
     ) -> None:
         self._emit = emit
         self._confirm = confirm_side_effect
-        self._advisor = advisor
         self._heartbeat_s = heartbeat_s
-        self._wait_s = wait_and_retry_s
         self._task: asyncio.Task[None] | None = None
         self._job_id: str | None = None
 
@@ -160,38 +138,10 @@ class JobExecutor:
             await self._event(job_id, "failed", step, error_code=e.code, message=str(e)[:300], retryable=e.retryable)
 
     async def _run_step(self, step: Step, ctx: StepContext) -> ProposalResult | None:
-        recoveries = 0
-        while True:
-            try:
-                return await asyncio.wait_for(step.run(ctx), step.timeout_s)
-            except TimeoutError as e:
-                raise StepTimeout(f"step {step.name} timed out", step=step.name) from e
-            except UnexpectedScreen as e:
-                action = await self._ask_advisor(step, e.observation)
-                if (
-                    action in (Recovery.RETRY_STEP, Recovery.WAIT_AND_RETRY)
-                    and not step.side_effect
-                    and recoveries < self.MAX_AI_RECOVERIES
-                ):
-                    recoveries += 1
-                    logs.info("ai suggested recovery", job_id=ctx.job_id, step=step.name, action=action)
-                    if action is Recovery.WAIT_AND_RETRY:
-                        await asyncio.sleep(self._wait_s)
-                    continue
-                raise NeedsHuman("UNEXPECTED_SCREEN", f"tela não prevista em {step.name}") from e
-
-    async def _ask_advisor(self, step: Step, obs: Observation) -> Recovery:
-        if self._advisor is None:
-            return Recovery.ESCALATE
-        allowed = sorted(r.value for r in step.allowed_recoveries)
         try:
-            advice = await self._advisor.advise(step.name, allowed, obs)
-        except Exception as e:  # noqa: BLE001 — falha da IA nunca derruba o job
-            logs.warning("advisor failed", step=step.name, error=type(e).__name__)
-            return Recovery.ESCALATE
-        # Validação determinística da sugestão.
-        if advice is None or advice.action not in step.allowed_recoveries:
-            return Recovery.ESCALATE
-        if advice.confidence < self._advisor.min_confidence:
-            return Recovery.ESCALATE
-        return advice.action
+            return await asyncio.wait_for(step.run(ctx), step.timeout_s)
+        except TimeoutError as e:
+            raise StepTimeout(f"step {step.name} timed out", step=step.name) from e
+        except UnexpectedScreen as e:
+            # Sem IA no MVP: tela não prevista sempre vai para decisão humana.
+            raise NeedsHuman("UNEXPECTED_SCREEN", f"tela não prevista em {step.name}") from e

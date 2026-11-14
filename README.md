@@ -2,7 +2,7 @@
 
 Plataforma de automação para geração de propostas de crédito consignado no Consig do Banco BMG.
 Operadores enviam solicitações por um **portal web**; um único **computador de backoffice** recebe, enfileira e
-executa as propostas com um **motor RPA** e, só em situações excepcionais, uma **IA local** sob demanda.
+executa as propostas com um **motor RPA**; telas inesperadas vão direto para confirmação humana.
 
 > **Estado atual (Fase 1):** toda a infraestrutura está implementada e testada. A navegação, o preenchimento e a
 > submissão no Consig **ainda não existem** — dependem do mapeamento do sistema real. Até lá o backoffice não
@@ -15,13 +15,13 @@ executa as propostas com um **motor RPA** e, só em situações excepcionais, um
 | Portal dos operadores | `apps/portal` | React 19, TypeScript, Vite, CSS próprio |
 | App desktop (backoffice) | `apps/desktop` | Tauri 2 (Rust) + React 19 |
 | Backend | `supabase/` | Postgres, RLS, funções SQL, pg_cron, Realtime, Edge Functions (Deno) |
-| Motor RPA + IA local | `services/engine` | Python 3.12, Playwright (Google Chrome), Ollama portátil |
+| Motor RPA | `services/engine` | Python 3.12, Playwright (Google Chrome) |
 | Contratos e marca | `packages/` | tipos compartilhados, fixtures, tokens visuais |
 
 ## Documentação
 
 [Arquitetura](docs/ARCHITECTURE.md) · [Contrato de API](docs/API_CONTRACT.md) · [Banco](docs/DATABASE_SCHEMA.md) ·
-[Segurança](docs/SECURITY.md) · [LGPD](docs/LGPD.md) · [Motor RPA](docs/RPA_ENGINE.md) · [IA local](docs/LOCAL_AI.md) ·
+[Segurança](docs/SECURITY.md) · [LGPD](docs/LGPD.md) · [Motor RPA](docs/RPA_ENGINE.md) ·
 [Atualizações](docs/UPDATE_SYSTEM.md) · [Acessibilidade](docs/ACCESSIBILITY.md) ·
 [Roadmap e pendências](docs/DEVELOPMENT_ROADMAP.md) · [Changelog](CHANGELOG.md)
 

@@ -25,7 +25,6 @@ pub struct WorkerStatus {
     pub engine_version: Option<String>,
     pub workflow_ready: bool,
     pub consig_session: String,
-    pub ai_state: String,
     pub supabase_reachable: Option<bool>,
     pub last_cycle_at: Option<u64>,
     pub last_error: Option<String>,

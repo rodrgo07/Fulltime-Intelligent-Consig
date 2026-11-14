@@ -33,19 +33,6 @@ class JobRef(Strict):
     job_id: str = Field(min_length=1, max_length=64)
 
 
-class AiConfigureParams(Strict):
-    enabled: bool
-    model: str | None = Field(default=None, max_length=100)
-    timeout_s: float = Field(default=90, gt=0, le=600)
-    min_free_ram_mb: int = Field(default=1500, ge=256)
-    max_cpu_percent: float = Field(default=85, gt=0, le=100)
-    min_confidence: float = Field(default=0.8, ge=0.5, le=1)
-
-
-class AiPullParams(Strict):
-    model: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9._:-]*$")
-
-
 class SessionOpenParams(Strict):
     start_url: str | None = Field(default=None, max_length=500, pattern=r"^https://")
 

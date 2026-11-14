@@ -1,7 +1,7 @@
-# API_CONTRACT — contrato oficial v1
+# API_CONTRACT — contrato oficial v2
 
-Referência única da comunicação entre **portal web**, **backend (Supabase)**, **app desktop**, **motor RPA** e
-**IA local**. Mudanças incompatíveis exigem nova versão (`CONTRACT_VERSION`) e atualização simultânea de:
+Referência única da comunicação entre **portal web**, **backend (Supabase)**, **app desktop** e **motor RPA**.
+Mudanças incompatíveis exigem nova versão (`CONTRACT_VERSION`) e atualização simultânea de:
 `supabase/migrations`, `packages/contracts/src/index.ts`, `services/engine/src/fic_rpa/protocol.py`,
 `apps/desktop/src-tauri/src/engine.rs` e das fixtures em `packages/contracts/fixtures/`.
 
@@ -93,14 +93,13 @@ Desktop → motor:
 
 | Método | Parâmetros | Resultado |
 |---|---|---|
-| `engine.hello` | `{contract_version: 1}` | `{engine_version, contract_version, capabilities:{workflow_ready, workflow_id}}` |
-| `engine.health` | — | `{status, workflow_ready, session, current_job, ai}` |
+| `engine.hello` | `{contract_version: 2}` | `{engine_version, contract_version, capabilities:{workflow_ready, workflow_id}}` |
+| `engine.health` | — | `{status, workflow_ready, session, current_job}` |
 | `engine.shutdown` | — | `{ok}` |
 | `session.open` | `{start_url?: "https://…"}` | `{state}` |
 | `session.status` / `session.close` | — | `{state}` (`closed|open_unverified|authenticated|expired|browser_missing`) |
 | `job.execute` | `{job_id, request_id, public_ref, attempt, form_version, fields, payload, deadline_s}` | `{accepted, job_id}` — ou erro `WORKFLOW_NOT_READY`, `SESSION_UNAVAILABLE`, `ENGINE_BUSY` |
 | `job.cancel` | `{job_id}` | `{cancelled}` |
-| `ai.status` / `ai.configure` / `ai.install_runtime` / `ai.pull_model` | ver `protocol.py` | estado da IA |
 
 Motor → desktop:
 
@@ -113,13 +112,6 @@ Motor → desktop:
 `{error_code, message, retryable}`; de `escalated`: `{reason_code, message}`. O payload nunca volta pelo canal.
 Erros: `-32700` JSON inválido, `-32601` método inexistente, `-32602` parâmetros inválidos (`data.fields`),
 `-32000` erro do motor (`data.code`). Métodos `host.*` diferentes de `confirm_side_effect` são rejeitados pelo desktop.
-
-## 7. Motor RPA ↔ IA local
-
-Interface `Advisor.advise(step, allowed[], observation) → Advice | None`. A IA recebe texto visível/captura de
-tela **localmente** e devolve JSON `{situation, action ∈ allowed, confidence}`. Ações possíveis:
-`retry_step`, `wait_and_retry`, `escalate`. O executor valida (lista da etapa, confiança mínima, nunca em etapa
-com efeito, no máximo 2 recuperações) e executa com código determinístico.
 
 ## 8. Backend → E-mail
 
