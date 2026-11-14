@@ -30,12 +30,17 @@ Requisitos: Node 24+, pnpm, Rust (stable-msvc) + Visual Studio Build Tools, uv, 
 
 ```bash
 pnpm install
-pnpm --filter @fic/supabase test        # banco (PGlite) + Edge Functions
+pnpm --filter @fic/supabase test        # banco (PGlite) + Edge Functions + fila ponta a ponta (sobe o motor; precisa do uv)
 pnpm --filter @fic/contracts test
 pnpm --filter @fic/portal test
 cd services/engine && uv sync && uv run pytest -q
-cd apps/desktop/src-tauri && cargo test
+cd apps/desktop/src-tauri && cargo test # precisa de apps/desktop/dist/index.html e do sidecar placeholder, como no CI
 ```
+
+Testes de segurança contra a homologação real (só leitura por padrão; variáveis em
+`supabase/tests/live/security.live.test.ts`): `pnpm --filter @fic/supabase test:live`.
+Testes de bug conhecido usam `it.fails` (vitest) ou `#[ignore = "BUG-QA-…"]` (Rust): quando o bug for corrigido,
+eles passam a falhar e devem virar testes normais.
 
 Rodar:
 

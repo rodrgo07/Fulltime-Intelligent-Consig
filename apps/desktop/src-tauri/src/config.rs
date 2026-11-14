@@ -200,6 +200,56 @@ mod tests {
         assert!(c.validate().is_ok());
     }
 
+    // D3 — tentativas de usar a service_role no desktop.
+    #[test]
+    fn rejects_service_role_variants() {
+        use base64::Engine;
+        let base = AppConfig { supabase_url: "https://abc.supabase.co".into(), ..Default::default() };
+        let realistic = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(r#"{"iss":"supabase","ref":"abc","role":"service_role","iat":1,"exp":9999999999}"#);
+        let padded = base64::engine::general_purpose::URL_SAFE.encode(r#"{"role":"service_role"}"#);
+        for key in [
+            format!("eyJhbGciOiJIUzI1NiJ9.{realistic}.sig"),
+            format!("eyJhbGciOiJIUzI1NiJ9.{padded}.sig"),
+            "sb_secret_0123456789abcdef".to_string(),
+            " sb_secret_abc".to_string(),
+            "sb_secret_abc\n".to_string(),
+        ] {
+            let c = AppConfig { supabase_anon_key: key.clone(), ..base.clone() };
+            assert!(c.validate().is_err(), "chave aceita indevidamente: {key:?}");
+        }
+        for key in ["sb_publishable_0123456789abcdef".to_string(), jwt("anon")] {
+            let c = AppConfig { supabase_anon_key: key.clone(), ..base.clone() };
+            assert!(c.validate().is_ok(), "chave pública recusada: {key:?}");
+        }
+    }
+
+    #[test]
+    fn save_refuses_service_role_and_keeps_previous_config() {
+        let dir = std::env::temp_dir().join(format!("fic-cfg-sr-{}", std::process::id()));
+        let store = ConfigStore::new(&dir);
+        let good = AppConfig { supabase_url: "https://abc.supabase.co".into(), supabase_anon_key: jwt("anon"), ..Default::default() };
+        store.save(&good).unwrap();
+        let bad = AppConfig { supabase_anon_key: "sb_secret_abc".into(), ..good.clone() };
+        assert_eq!(store.save(&bad).unwrap_err().code(), "SERVICE_ROLE_FORBIDDEN");
+        assert_eq!(store.load(), good);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    // BUG-QA-003: a recusa só acontece em save(). Na inicialização (lib.rs → store.load() → rebuild_client),
+    // um config.json editado à mão com a service_role é usado sem validação. Quando corrigido, remover o #[ignore].
+    #[test]
+    #[ignore = "BUG-QA-003: ConfigStore::load não valida a chave (service_role do disco é aceita)"]
+    fn load_never_returns_a_service_role_key() {
+        let dir = std::env::temp_dir().join(format!("fic-cfg-load-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("config.json"),
+            r#"{"supabase_url":"https://abc.supabase.co","supabase_anon_key":"sb_secret_abc"}"#).unwrap();
+        let loaded = ConfigStore::new(&dir).load();
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(loaded.validate().is_ok(), "config carregada do disco contém chave proibida");
+    }
+
     #[test]
     fn accepts_only_public_keys() {
         let mut c = AppConfig { supabase_url: "https://abc.supabase.co".into(), ..Default::default() };

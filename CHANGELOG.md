@@ -26,6 +26,15 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - Documentação: projeto Supabase em us-east-1 (transferência internacional, `LGPD.md`/`SECURITY.md`).
 - Verificação de compatibilidade (`supabase/tests/compat/verify.sql`) no job `supabase-compat` do CI e smoke test
   local das chaves novas (`supabase/tests/smoke/new-keys.mjs`).
+- QA D3 (segurança, PGlite): anônimo recusado em todas as tabelas/RPCs, JWT sem membro, claims forjadas, isolamento
+  entre operadores, rate limit (isolamento, janela, diário), replay da chave de idempotência, entrada hostil.
+- QA D3 (portal): XSS em formulário, solicitações e acessos; varredura de sinks de HTML; CSP do portal e do desktop.
+- QA D3 (desktop): variações de chave `service_role`/`sb_secret_` recusadas.
+- QA D3 (projeto real): suíte `test:live`, pulada sem variáveis de ambiente e só leitura por padrão.
+- QA D2: fila ponta a ponta com o motor Python real e um fluxo FALSO só de teste (`services/engine/tests/fake_engine.py`):
+  sucesso com e-mail e exclusão dos dados, falha antes/depois do ponto sem retorno, queda do app, queda de rede.
+- Testes de bugs conhecidos: BUG-QA-001 (auditoria do rate limit perdida), BUG-QA-002 (resultado pendente bloqueia a
+  fila após decisão humana), BUG-QA-003 (`config.json` com `service_role` aceito na inicialização).
 
 ### Alterado
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment

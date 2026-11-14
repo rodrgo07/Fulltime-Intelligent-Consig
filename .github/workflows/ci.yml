@@ -27,8 +27,8 @@ jobs:
         with:
           # Mudar o próprio CI roda todas as áreas (senão a correção do workflow não é exercitada).
           filters: |
-            js: ['apps/portal/**', 'apps/desktop/src/**', 'packages/**', 'pnpm-lock.yaml', '.github/workflows/ci.yml']
-            db: ['supabase/**', '.github/workflows/ci.yml']
+            js: ['apps/portal/**', 'apps/desktop/src/**', 'apps/desktop/src-tauri/tauri.conf.json', 'packages/**', 'pnpm-lock.yaml', '.github/workflows/ci.yml']
+            db: ['supabase/**', 'services/engine/src/**', 'services/engine/tests/fake_engine.py', 'services/engine/uv.lock', '.github/workflows/ci.yml']
             engine: ['services/engine/**', 'ialocal/manifest.json', 'packages/contracts/fixtures/**', '.github/workflows/ci.yml']
             desktop: ['apps/desktop/**', 'packages/contracts/fixtures/**', '.github/workflows/ci.yml']
 
@@ -59,8 +59,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # D2: os testes ponta a ponta da fila sobem o motor Python real com o fluxo FALSO de teste.
+      - uses: astral-sh/setup-uv@v6
       # RLS, funções, retenção e Edge Functions (lógica) em Postgres real (PGlite), sem tocar o projeto da nuvem.
       - run: pnpm --filter @fic/supabase test
+        env:
+          FIC_REQUIRE_E2E: "1"
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
       # Roda dentro de supabase/functions para o Deno usar o deno.json local ("nodeModulesDir": "none").
