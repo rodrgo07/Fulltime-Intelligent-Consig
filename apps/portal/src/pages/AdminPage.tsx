@@ -107,7 +107,7 @@ export function AdminPage() {
             <caption className="visually-hidden">Membros com acesso ao Intelligent Consig</caption>
             <thead>
               <tr>
-                <th scope="col">Nome</th><th scope="col">Papel</th><th scope="col">Código</th><th scope="col">E-mail de notificação</th>
+                <th scope="col">Nome</th><th scope="col">Papel</th><th scope="col">Código</th><th scope="col">E-mail</th>
                 <th scope="col">Desde</th><th scope="col">Situação</th><th scope="col"><span className="visually-hidden">Ações</span></th>
               </tr>
             </thead>

@@ -5,6 +5,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 ## [Não lançado]
 
 ### Adicionado
+- Portal: aviso de proposta gerada só no portal, em tempo real — selo “Nova” nas solicitações concluídas ainda não
+  vistas, contador no título e no menu (“(2) Minhas solicitações”), anúncio `aria-live` e “Marcar todas como
+  vistas”. “Vistas” no `localStorage`, por usuário; sem backend. Substitui o e-mail de resultado ao operador.
 - Templates de e-mail do Auth em PT-BR (convite e recuperação) em `supabase/templates/`; aplicados após o SMTP
   próprio (Resend), exigido pelo Supabase no plano free.
 - Teste de regressão do `config.toml` (`supabase/tests/config.test.ts`).
@@ -35,6 +38,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 - QA: suítes D2/D3 sem o e-mail de resultado (decisão de simplificar). O D2 termina em `completed` + resultado visível
   ao operador pelo portal (RLS) + exclusão dos dados pessoais; D3 local e live sem `notification_queue`,
   `svc_claim_notifications`/`svc_finish_notification` e `dispatch-notifications`.
+- Portal (Acessos): coluna “E-mail de notificação” passa a “E-mail” (não há mais aviso por e-mail). Desktop: o
+  detalhe da solicitação não mostra mais o estado do “E-mail ao proprietário” e não depende de `notifications`.
 - Deploy do portal passa a ocorrer em tags `vX.Y.Z` (não mais a cada push em `main`), coerente com o Environment
   `production` restrito a tags `v*` com aprovação. O deploy manual do Supabase deve ser disparado a partir de uma tag.
 - Tokens de cor ajustados para contraste AA nos dois temas (texto fraco, estados, bordas de campo) — teste de

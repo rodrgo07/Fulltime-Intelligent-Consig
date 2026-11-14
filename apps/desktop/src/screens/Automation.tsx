@@ -8,7 +8,6 @@ import { usePolling } from "../lib/usePolling";
 type Detail = {
   request: RequestRow | null;
   audit: { occurred_at: string; action: string; actor_role: string | null; details: Record<string, unknown> }[];
-  notifications: { status: string; attempts: number; last_error: string | null; sent_at: string | null }[];
 };
 
 /** Código técnico (mono) + rótulo legível quando conhecido. */
@@ -161,7 +160,6 @@ function DetailPanel({ id, onClose, onChanged }: { id: string; onClose: () => vo
             <div><dt>Formulário</dt><dd className="mono">v{r.form_version}</dd></div>
             <div><dt>Dados pessoais</dt><dd>{r.pii_purged_at ? <>Excluídos em <span className="mono">{fmt(r.pii_purged_at)}</span></> : <>Expiram em <span className="mono">{fmt(r.pii_expires_at)}</span></>}</dd></div>
             {r.proposal_results && <div><dt>Adesão</dt><dd className="mono">{r.proposal_results.adhesion_number} · {r.proposal_results.result_status} ({r.proposal_results.source === "manual" ? "confirmação manual" : "RPA"})</dd></div>}
-            {data.notifications[0] && <div><dt>E-mail ao proprietário</dt><dd>{data.notifications[0].status} · {data.notifications[0].attempts} tentativa(s){data.notifications[0].last_error ? ` · ${data.notifications[0].last_error}` : ""}</dd></div>}
           </dl>
 
           {r.status === "awaiting_confirmation" && (
