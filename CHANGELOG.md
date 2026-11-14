@@ -10,8 +10,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
 
 ### Removido
 - Todo e-mail e todas as Edge Functions (decisão do usuário): saem `admin-invite`, `supabase/functions/`, os
-  templates `supabase/templates/`, os códigos `ALREADY_REGISTERED`, `INVALID_INPUT`, `INVITE_FAILED`,
-  `REGISTER_FAILED` e `METHOD_NOT_ALLOWED`, o `deno check` do CI e o deploy de funções. Migration `…0007`: drop de
+  templates `supabase/templates/`, os códigos `ALREADY_REGISTERED`, `INVITE_FAILED`,
+  `REGISTER_FAILED` e `METHOD_NOT_ALLOWED` (`INVALID_INPUT` fica: o desktop usa), o `deno check` do CI e o deploy de funções. Migration `…0007`: drop de
   `operators.notification_email` e de `assert_admin()`; `svc_register_member(p_user_id, p_role, p_display_name)`
   substitui a versão de 5 argumentos e audita `member.registered`.
 - E-mail de resultado ao operador (decisão do usuário): o aviso passa a ser só no portal, em tempo real. Migration

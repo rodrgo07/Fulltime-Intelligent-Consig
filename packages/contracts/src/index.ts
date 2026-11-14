@@ -116,6 +116,7 @@ export const ERROR_MESSAGE: Record<string, string> = {
   JOB_NOT_FOUND: "Execução não encontrada.",
   JOB_NOT_ACTIVE: "Esta execução já foi encerrada ou a reserva expirou.",
   // Infraestrutura
+  INVALID_INPUT: "Dados inválidos.",
   NETWORK: "Sem conexão com o servidor. Tente novamente.",
   UNKNOWN: "Não foi possível concluir a operação.",
 };
