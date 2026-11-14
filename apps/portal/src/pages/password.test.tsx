@@ -28,6 +28,17 @@ describe("troca de senha obrigatória (must_change_password)", () => {
     expect(screen.getByRole("button", { name: "Sair" })).toBeTruthy();
   });
 
+  it.each(["admin", "backoffice"])("vale para qualquer papel (%s): troca antes do menu e do MFA", (role) => {
+    auth = fakeAuth({
+      profile: { id: FAKE_UID, role, display_name: "Membro", active: true, must_change_password: true },
+      operator: null, aal: "aal1",
+    });
+    render(<App />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Troca de senha obrigatória");
+    expect(screen.queryByRole("navigation", { name: "Principal" })).toBeNull();
+    expect(screen.queryByText("Verificação em duas etapas")).toBeNull();
+  });
+
   it("troca: updateUser → mark_password_changed → recarrega o perfil", async () => {
     const updateUser = vi.fn(async () => ({ data: {}, error: null }));
     const markPasswordChanged = vi.fn(async () => ({ ok: true, data: null }));
