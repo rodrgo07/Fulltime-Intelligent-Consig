@@ -79,6 +79,44 @@ export type ProposalResultRow = {
 
 export type SubmitResult = { request_id: string; public_ref: string; status: RequestStatus; duplicate: boolean };
 
+// ---------------------------------------------------------------- v2: backoffice e robô
+export type ConsigSession = "unknown" | "authenticated" | "logged_out";
+export type RobotState = {
+  paused: boolean;
+  consig_session: ConsigSession;
+  current_step: string | null;
+  current_job_id: string | null;
+  version: string | null;
+  flow_ready: boolean;
+  ai_enabled: boolean;
+  ai_model: string | null;
+  last_seen_at: string | null;
+};
+export type RobotCommand = "pause" | "resume" | "open_consig" | "restart";
+export const ROBOT_OFFLINE_AFTER_MS = 120_000;
+export const CONSIG_SESSION_LABEL: Record<ConsigSession, string> = {
+  unknown: "Desconhecida",
+  authenticated: "Logado",
+  logged_out: "Sem login",
+};
+/** Robô sem sinal há mais de 2 min (ou nunca visto). */
+export function robotOffline(state: Pick<RobotState, "last_seen_at"> | null, now = Date.now()): boolean {
+  if (!state?.last_seen_at) return true;
+  return now - new Date(state.last_seen_at).getTime() > ROBOT_OFFLINE_AFTER_MS;
+}
+export type JobRow = {
+  id: string;
+  request_id: string;
+  attempt: number;
+  status: string;
+  current_step: string | null;
+  side_effect_started_at: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  captured_adhesion_number: string | null;
+  created_at: string;
+};
+
 export type FieldError = { field: string | null; code: string };
 
 /**
@@ -122,6 +160,9 @@ export const ERROR_MESSAGE: Record<string, string> = {
   REGISTER_FAILED: "O convite foi enviado, mas o cadastro do membro não foi concluído. Avise o responsável técnico.",
   // Infraestrutura
   METHOD_NOT_ALLOWED: "Operação não suportada.",
+  ROBOT_RESULT_EXISTS: "O robô já capturou um número de adesão: a proposta existe no Consig. Conclua com esse número.",
+  INVALID_COMMAND: "Comando do robô inválido.",
+  INVALID_SESSION_STATE: "Estado de sessão do Consig inválido.",
   NETWORK: "Sem conexão com o servidor. Tente novamente.",
   UNKNOWN: "Não foi possível concluir a operação.",
 };
@@ -137,6 +178,10 @@ export const STATUS_REASON_LABEL: Record<string, string> = {
   PII_MISSING: "Dados pessoais indisponíveis para processamento.",
   REQUEUED: "Reenfileirada pelo backoffice.",
   RESOLVED_BY_BACKOFFICE: "Resolvida pelo backoffice.",
+  MAX_ATTEMPTS: "Limite de tentativas atingido.",
+  // Robô (v2)
+  ROBOT_ERROR: "Erro no robô de automação.",
+  LEASE_EXPIRED_AFTER_SIDE_EFFECT: "O robô parou depois do ponto sem retorno; confirme no Consig.",
   // Motor RPA
   ENGINE_ERROR: "Erro no motor de automação.",
   WORKFLOW_NOT_READY: "Fluxo do Consig ainda não implementado.",

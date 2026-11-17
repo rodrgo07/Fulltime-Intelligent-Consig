@@ -12,7 +12,7 @@ declare global {
 // Fontes reais dos códigos: o teste falha se o backend ganhar um código sem mensagem na interface.
 const sql = import.meta.glob<string>("../../../supabase/migrations/*.sql", { query: "?raw", import: "default", eager: true });
 const functions = import.meta.glob<string>("../../../supabase/functions/**/*.ts", { query: "?raw", import: "default", eager: true });
-const engine = import.meta.glob<string>("../../../services/engine/src/fic_rpa/*.py", { query: "?raw", import: "default", eager: true });
+const engine = import.meta.glob<string>("../../../services/robot/src/fic_robot/*.py", { query: "?raw", import: "default", eager: true });
 
 const matches = (sources: Record<string, string>, re: RegExp) =>
   [...new Set(Object.values(sources).flatMap((src) => [...src.matchAll(re)].map((m) => m[1])))].sort();
@@ -66,7 +66,7 @@ describe("contracts", () => {
       .concat(matches(sql, /coalesce\(p_note,\s*'([A-Z][A-Z0-9_]+)'\)/g));
     const fromEngine = matches(engine, /code\s*=\s*"([A-Z][A-Z0-9_]+)"/g);
     expect(fromSql).toEqual(expect.arrayContaining(["LEASE_EXPIRED", "PII_EXPIRED", "REQUEUED"]));
-    expect(fromEngine).toEqual(expect.arrayContaining(["STEP_TIMEOUT", "UNEXPECTED_SCREEN"]));
+    expect(fromEngine).toEqual(expect.arrayContaining(["SESSION_UNAVAILABLE", "UNEXPECTED_SCREEN"]));
     expect([...fromSql, ...fromEngine].filter((c) => !STATUS_REASON_LABEL[c])).toEqual([]);
     expect(statusReasonLabel("Cancelada pelo operador")).toBeNull();
     expect(statusReasonLabel(null)).toBeNull();

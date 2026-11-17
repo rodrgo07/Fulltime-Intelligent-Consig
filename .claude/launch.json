@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "portal",
+      "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@fic/portal", "dev"],
+      "runtimeArgs": ["--filter", "@fic/web", "dev"],
       "port": 5174
-    },
-    {
-      "name": "desktop-ui",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@fic/desktop", "dev"],
-      "port": 1420
     }
   ]
 }

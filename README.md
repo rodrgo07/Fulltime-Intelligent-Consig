@@ -1,64 +1,87 @@
 # Fulltime Intelligent Consig
 
-Plataforma de automação para geração de propostas de crédito consignado no Consig do Banco BMG.
-Operadores enviam solicitações por um **portal web**; um único **computador de backoffice** recebe, enfileira e
-executa as propostas com um **motor RPA** e, só em situações excepcionais, uma **IA local** sob demanda.
+Automação da geração de propostas no Consig (Banco BMG). Operadores pedem pelo **site**; um **robô** no PC do
+backoffice gera a proposta no Chrome e devolve o número de adesão. O backoffice acompanha, pausa e resolve exceções
+pelo **mesmo site**. Nada é instalado no PC do backoffice e nada exige administrador.
 
-> **Estado atual (Fase 1):** toda a infraestrutura está implementada e testada. A navegação, o preenchimento e a
-> submissão no Consig **ainda não existem** — dependem do mapeamento do sistema real. Até lá o backoffice não
-> reserva solicitações (elas ficam “Aguardando processamento”) e o painel informa o motivo.
+> **Estado (v2):** backend, site e robô prontos e testados. O fluxo real do Consig **ainda não existe**: entra a partir
+> do código Selenium em mapeamento (`services/robot/src/fic_robot/flows.py`). Sem fluxo, o robô não reserva
+> solicitações e o painel mostra "Fluxo do Consig: não configurado".
 
 ## Componentes
 
 | | Pasta | Tecnologia |
 |---|---|---|
-| Portal dos operadores | `apps/portal` | React 19, TypeScript, Vite, CSS próprio |
-| App desktop (backoffice) | `apps/desktop` | Tauri 2 (Rust) + React 19 |
-| Backend | `supabase/` | Postgres, RLS, funções SQL, pg_cron, Realtime, Edge Functions (Deno) |
-| Motor RPA + IA local | `services/engine` | Python 3.12, Playwright (Google Chrome), Ollama portátil |
-| Contratos e marca | `packages/` | tipos compartilhados, fixtures, tokens visuais |
+| Site único (Operador, Backoffice, Admin) | `apps/web` | React 19, TypeScript, Vite |
+| Backend | `supabase/` | Postgres, RLS, funções SQL, pg_cron, Realtime, Edge Function `admin-invite` |
+| Robô | `services/robot` | Python ≥ 3.12, Selenium (Chrome instalado), httpx, keyring |
+| Contratos e marca | `packages/` | tipos, códigos de erro e rótulos; tokens visuais |
 
-## Documentação
+```
+Navegador (operador/backoffice) ──HTTPS──▶ Supabase (sa-east-1) ◀──HTTPS (só saída)── Robô no PC do backoffice
+                                 ◀Realtime                                              └─ Selenium → Chrome (perfil dedicado)
+```
 
-[Arquitetura](docs/ARCHITECTURE.md) · [Contrato de API](docs/API_CONTRACT.md) · [Banco](docs/DATABASE_SCHEMA.md) ·
-[Segurança](docs/SECURITY.md) · [LGPD](docs/LGPD.md) · [Motor RPA](docs/RPA_ENGINE.md) · [IA local](docs/LOCAL_AI.md) ·
-[Atualizações](docs/UPDATE_SYSTEM.md) · [Acessibilidade](docs/ACCESSIBILITY.md) ·
-[Roadmap e pendências](docs/DEVELOPMENT_ROADMAP.md) · [Changelog](CHANGELOG.md)
+## Regras que não podem quebrar
+
+- **Sem proposta duplicada.** O ponto sem retorno é gravado no banco *antes* da etapa que submete. Depois dele, erro
+  vai para "aguardando confirmação", nunca para nova tentativa. Se o robô já capturou o número, o banco recusa
+  "reprocessar" e "falhar" (`ROBOT_RESULT_EXISTS`), e o `complete_job` do robô é aceito mesmo depois do escalonamento.
+- **Resultado não se perde.** O número vai para `pending-results.json` antes de qualquer chamada; o robô não reserva
+  nada novo enquanto houver pendente.
+- **Dados pessoais.** O payload só existe em memória durante o job e é apagado no banco ao concluir/cancelar
+  (no máximo 72 h). Logs e mensagens de erro passam por redação (CPF, e-mail, números longos). A senha do Consig
+  nunca passa pelo robô: a pessoa faz o login na janela do Chrome.
+- **Repositório público.** Nenhum segredo, URL de projeto ou detalhe operacional do Consig no código.
 
 ## Desenvolvimento
 
-Requisitos: Node 24+, pnpm, Rust (stable-msvc) + Visual Studio Build Tools, uv, Windows 10/11 com WebView2.
+Requisitos: Node 24+, pnpm, Python ≥ 3.12.
 
 ```bash
 pnpm install
-pnpm --filter @fic/supabase test        # banco (PGlite) + Edge Functions + fila ponta a ponta (sobe o motor; precisa do uv)
+pnpm --filter @fic/supabase test     # banco em PGlite: RLS, fila, retenção, v2 (tests/v2.test.ts)
 pnpm --filter @fic/contracts test
-pnpm --filter @fic/portal test
-pnpm --filter @fic/desktop test         # interface do desktop (IPC do Tauri simulado)
-cd services/engine && uv sync && uv run pytest -q
-cd apps/desktop/src-tauri && cargo test # precisa de apps/desktop/dist/index.html e do sidecar placeholder, como no CI
+pnpm --filter @fic/web test
+cd services/robot && python -m venv .venv && .venv/Scripts/python -m pip install -e ".[dev]" && .venv/Scripts/python -m pytest -q
 ```
 
-Testes de segurança contra a homologação real (só leitura por padrão; variáveis em
-`supabase/tests/live/security.live.test.ts`): `pnpm --filter @fic/supabase test:live`.
-Testes de bug conhecido usam `it.fails` (vitest) ou `#[ignore = "BUG-QA-…"]` (Rust): quando o bug for corrigido,
-eles passam a falhar e devem virar testes normais.
+Site local: `pnpm --filter @fic/web dev` (usa `apps/web/.env.local`, ver `.env.example`).
 
-Rodar:
+## Robô no PC do backoffice
 
-```bash
-pnpm --filter @fic/portal dev                                 # portal em http://localhost:5174 (usa apps/portal/.env.local)
-cd services/engine && uv run python scripts/build_sidecar.py  # gera o motor para o desktop
-pnpm --filter @fic/desktop tauri dev                          # app desktop
-```
+1. Copiar a pasta `services/robot` para o PC (por exemplo `Documentos\fic-robot`).
+2. Copiar `robo.env.example` para `robo.env` e preencher a URL do projeto e a chave **publicável**.
+3. Dar dois cliques em `iniciar.bat`. Na primeira vez ele cria o `.venv` na própria pasta e instala as dependências
+   (precisa de acesso ao PyPI). Depois pede e-mail, senha e código MFA do usuário backoffice; a senha não é guardada,
+   o refresh token fica no Gerenciador de Credenciais do Windows por no máximo 24 h.
+4. Para abrir junto com o Windows: atalho do `iniciar.bat` em `shell:startup` (pasta Inicializar do usuário).
+5. Atualizar: baixar o zip novo e substituir a pasta (mantendo `robo.env`, `chrome-profile` e `pending-results.json`).
+
+Teste ponta a ponta sem o Consig: `FIC_FAKE_FLOW=1` em `robo.env`. O fluxo falso nunca abre o navegador.
+
+Comandos do painel (Pausar, Retomar, Abrir Consig, Reiniciar) chegam ao robô pela tabela `robot_commands`; o robô
+manda sinal de vida para `robot_state` a cada volta (3 s). Sem sinal por mais de 2 min, o painel acende o alerta.
 
 ## Primeiros passos em um ambiente novo
 
-1. Criar o projeto Supabase; `supabase link --project-ref <ref>`; `supabase db push`; `supabase config push`.
-2. Deploy da Edge Function `admin-invite` e `supabase secrets set PORTAL_URL=…`.
+1. Criar o projeto Supabase em **sa-east-1** (São Paulo); `supabase link --project-ref <ref>`; `supabase db push`;
+   `supabase config push`.
+2. Deploy da Edge Function `admin-invite` e `supabase secrets set PORTAL_URL=<endereço do site>`.
 3. Bootstrap do primeiro admin/backoffice — `docs/DATABASE_SCHEMA.md`.
-4. Publicar o portal (Cloudflare Pages) com `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — automático a cada
-   tag `vX.Y.Z` (`.github/workflows/deploy.yml`, com aprovação no Environment `production`).
-5. Instalar o app no PC do backoffice, informar URL + chave pública (`sb_publishable_…` ou anon legada), entrar com MFA.
+4. Publicar o site (Cloudflare Pages) com `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — automático a cada tag
+   `vX.Y.Z` (`.github/workflows/deploy.yml`, com aprovação no Environment `production`).
+5. Configurar o robô (seção acima).
 
-Nunca use a chave `sb_secret_`/`service_role` no portal ou no desktop — o app a recusa.
+Nunca use a chave `sb_secret_`/`service_role` no site ou no robô.
+
+## Pendências
+
+- Encaixar o fluxo real do Consig (etapas Selenium + sonda de sessão) em `flows.py` / `browser.py`.
+- IA local (Ollama portátil): o painel já liga/desliga e escolhe o modelo (`robot_state.ai_*`); falta o runtime no robô.
+- Consolidar as migrations 0001–0007 num arquivo único antes do primeiro `db push` no projeto novo (opcional).
+- Aceites do T.I.: dado do cliente no Supabase (São Paulo), endereço do site, saída para `*.supabase.co` e PyPI.
+- Identidade visual vinda do repositório privado (`packages/brand`).
+
+Documentação detalhada da v1 (ainda válida para banco, segurança e LGPD): [docs/](docs/). Plano da v2:
+[docs/superpowers/plans/2026-11-17-fic-v2.md](docs/superpowers/plans/2026-11-17-fic-v2.md).
