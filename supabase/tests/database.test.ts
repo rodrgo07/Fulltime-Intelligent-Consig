@@ -100,7 +100,7 @@ describe("envio de solicitações (portal)", () => {
     await db.query("update public.app_settings set value = '2' where key = 'rate_limit_per_minute'");
     await submit(op, undefined, payload(FAKE_CPF[0]));
     await submit(op, undefined, payload(FAKE_CPF[1]));
-    expect(await errorCode(submit(op, undefined, payload(FAKE_CPF[0], { nome_teste: "Outro" })))).toBe("RATE_LIMITED");
+    expect(await submit(op, undefined, payload(FAKE_CPF[0], { nome_teste: "Outro" }))).toEqual({ error: "RATE_LIMITED" });
   });
 
   it("operador inativo e anônimo não enviam", async () => {

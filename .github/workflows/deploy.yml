@@ -1,7 +1,7 @@
-name: Deploy (portal e Supabase)
+name: Deploy (site e Supabase)
 
 # O Environment "production" só aceita tags v* e exige aprovação (docs/UPDATE_SYSTEM.md).
-# Portal: Cloudflare Pages a cada tag vX.Y.Z (a mesma tag da release do desktop).
+# Site: Cloudflare Pages a cada tag vX.Y.Z.
 # Supabase (migrations + Edge Functions): manual (Run workflow escolhendo a TAG em "Use workflow from").
 on:
   push:
@@ -45,8 +45,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @fic/contracts --filter @fic/portal test
-      - run: pnpm --filter @fic/portal build
+      - run: pnpm --filter @fic/contracts --filter @fic/web test
+      - run: pnpm --filter @fic/web build
         env:
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
@@ -57,7 +57,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
-        run: pnpm dlx wrangler@4.162.0 pages deploy apps/portal/dist --project-name="$PROJECT" --branch=main
+        run: pnpm dlx wrangler@4.162.0 pages deploy apps/web/dist --project-name="$PROJECT" --branch=main
 
   supabase:
     if: inputs.target == 'supabase'

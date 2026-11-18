@@ -204,7 +204,7 @@ describe("D3 — rate limit", () => {
   it("é isolado por operador", async () => {
     await setSetting("rate_limit_per_minute", 1);
     await submit(op, undefined, payload(FAKE_CPF[0]));
-    expect(await errorCode(submit(op, undefined, payload(FAKE_CPF[1])))).toBe("RATE_LIMITED");
+    expect(await submit(op, undefined, payload(FAKE_CPF[1]))).toEqual({ error: "RATE_LIMITED" });
     expect((await submit(op2, undefined, payload(FAKE_CPF[1]))).duplicate).toBe(false);
   });
 
@@ -220,7 +220,7 @@ describe("D3 — rate limit", () => {
     await submit(op, undefined, payload(FAKE_CPF[0]));
     await submit(op, undefined, payload(FAKE_CPF[1]));
     await db.query("update public.proposal_requests set received_at = now() - interval '2 hours'");
-    expect(await errorCode(submit(op, undefined, payload(FAKE_CPF[0], { nome_teste: "Outro" })))).toBe("RATE_LIMITED");
+    expect(await submit(op, undefined, payload(FAKE_CPF[0], { nome_teste: "Outro" }))).toEqual({ error: "RATE_LIMITED" });
   });
 
   it("envio barrado não grava nada (nem metadados, nem dados pessoais)", async () => {
@@ -239,13 +239,11 @@ describe("D3 — rate limit", () => {
     expect(b).toMatchObject({ request_id: a.request_id, duplicate: true });
   });
 
-  // BUG-QA-001: private.audit('request.rate_limited') roda antes do RAISE e é desfeito pelo rollback da
-  // mesma transação. Resultado: abuso barrado não deixa rastro na auditoria. Quando corrigido, este teste
-  // passa a falhar — troque it.fails por it.
-  it.fails("BUG-QA-001: tentativa barrada por rate limit fica registrada na auditoria", async () => {
+  // BUG-QA-001 (corrigido na 0007): a recusa agora é um retorno {error}, sem rollback da auditoria.
+  it("BUG-QA-001: tentativa barrada por rate limit fica registrada na auditoria", async () => {
     await setSetting("rate_limit_per_minute", 1);
     await submit(op, undefined, payload(FAKE_CPF[0]));
-    expect(await errorCode(submit(op, undefined, payload(FAKE_CPF[1])))).toBe("RATE_LIMITED");
+    expect(await submit(op, undefined, payload(FAKE_CPF[1]))).toEqual({ error: "RATE_LIMITED" });
     expect(await count("public.audit_logs where action = 'request.rate_limited'")).toBe(1);
   });
 });

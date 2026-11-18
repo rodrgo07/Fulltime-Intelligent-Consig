@@ -1,0 +1,7 @@
+.venv/
+robo.env
+chrome-profile/
+pending-results.json*
+__pycache__/
+*.egg-info/
+build/
