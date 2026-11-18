@@ -29,7 +29,7 @@ jobs:
             # Os testes JS também leem os códigos de erro do SQL, das Edge Functions e do robô.
             js: ['apps/web/**', 'packages/**', 'pnpm-lock.yaml', 'supabase/migrations/**', 'supabase/functions/**',
                  'services/robot/src/**', '.github/workflows/ci.yml']
-            db: ['supabase/**', '.github/workflows/ci.yml']
+            db: ['supabase/**', 'services/robot/src/**', 'services/robot/tests/e2e_driver.py', '.github/workflows/ci.yml']
             robot: ['services/robot/**', '.github/workflows/ci.yml']
 
   frontend:
@@ -59,8 +59,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      # RLS, funções, retenção e Edge Functions (lógica) em Postgres real (PGlite), sem tocar o projeto da nuvem.
+      # tests/robot-e2e.test.ts sobe o robô Python real com o fluxo FALSO de teste.
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python -m pip install httpx==0.28.1
+      # RLS, funções, retenção, robô ponta a ponta e Edge Functions (lógica) em PGlite, sem tocar a nuvem.
       - run: pnpm --filter @fic/supabase test
+        env:
+          FIC_REQUIRE_E2E: "1"
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
       # Roda dentro de supabase/functions para o Deno usar o deno.json local ("nodeModulesDir": "none").
