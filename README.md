@@ -4,9 +4,10 @@ Automação da geração de propostas no Consig (Banco BMG). Operadores pedem pe
 backoffice gera a proposta no Chrome e devolve o número de adesão. O backoffice acompanha, pausa e resolve exceções
 pelo **mesmo site**. Nada é instalado no PC do backoffice e nada exige administrador.
 
-> **Estado (v2):** backend, site e robô prontos e testados. O fluxo real do Consig **ainda não existe**: entra a partir
-> do código Selenium em mapeamento (`services/robot/src/fic_robot/flows.py`). Sem fluxo, o robô não reserva
-> solicitações e o painel mostra "Fluxo do Consig: não configurado".
+> **Estado (v2):** backend, site e robô prontos e testados. O fluxo do Consig (`services/robot/src/fic_robot/consig.py`)
+> está **mapeado até a tela de valores** (abrir digitação no ConsigMais, CPF, entidade, produto). Faltam a escolha de
+> valor/tabela, o envio e a captura do número de adesão; até lá o fluxo não tem etapa de envio, o robô não reserva
+> solicitações e o painel mostra "Fluxo do Consig: não configurado". O `ensaio.bat` roda as etapas mapeadas.
 
 ## Componentes
 
@@ -32,7 +33,8 @@ Navegador (operador/backoffice) ──HTTPS──▶ Supabase (sa-east-1) ◀─
 - **Dados pessoais.** O payload só existe em memória durante o job e é apagado no banco ao concluir/cancelar
   (no máximo 72 h). Logs e mensagens de erro passam por redação (CPF, e-mail, números longos). A senha do Consig
   nunca passa pelo robô: a pessoa faz o login na janela do Chrome.
-- **Repositório público.** Nenhum segredo, URL de projeto ou detalhe operacional do Consig no código.
+- **Repositório público.** Nenhum segredo, URL de projeto Supabase, credencial ou dado de cliente no código. O mapeamento
+  de telas do Consig (`consig.py`) fica no repositório por decisão do responsável (17/11/2026).
 
 ## Desenvolvimento
 
@@ -60,6 +62,15 @@ Site local: `pnpm --filter @fic/web dev` (usa `apps/web/.env.local`, ver `.env.e
 
 Teste ponta a ponta sem o Consig: `FIC_FAKE_FLOW=1` em `robo.env`. O fluxo falso nunca abre o navegador.
 
+**Ensaio do fluxo do Consig** (`ensaio.bat`, com o robô fechado: os dois usam o mesmo perfil do Chrome): abre o
+BMG Consig, espera o login humano (CAPTCHA; o perfil biométrico precisa estar ativo), pede o CPF sem mostrá-lo na
+tela e roda as etapas mapeadas, parando antes de qualquer envio. Não fala com o Supabase nem reserva solicitação.
+Para continuar o mapeamento, crie as próximas etapas em `consig.py`; a etapa que envia a proposta leva
+`side_effect = True` e devolve `ProposalResult(adhesion_number=...)`. Só então o robô passa a reservar jobs.
+
+**Formulário dos operadores:** rodar `supabase/forms/consig-inss-v1.sql` uma vez no SQL Editor (campos `cpf` e
+`entidade`, que são os que o `consig.py` lê).
+
 Comandos do painel (Pausar, Retomar, Abrir Consig, Reiniciar) chegam ao robô pela tabela `robot_commands`; o robô
 manda sinal de vida para `robot_state` a cada volta (3 s). Sem sinal por mais de 2 min, o painel acende o alerta.
 
@@ -77,7 +88,8 @@ Nunca use a chave `sb_secret_`/`service_role` no site ou no robô.
 
 ## Pendências
 
-- Encaixar o fluxo real do Consig (etapas Selenium + sonda de sessão) em `flows.py` / `browser.py`.
+- Fluxo do Consig: mapear valor/tabela, envio da proposta e captura do número de adesão (`consig.py`); cadastro
+  incompleto (extrato de margem, UF pelo DDD) hoje falha antes do envio e vai para a pessoa resolver.
 - IA local (Ollama portátil): o painel já liga/desliga e escolhe o modelo (`robot_state.ai_*`); falta o runtime no robô.
 - Consolidar as migrations 0001–0007 num arquivo único antes do primeiro `db push` no projeto novo (opcional).
 - Aceites do T.I.: dado do cliente no Supabase (São Paulo), endereço do site, saída para `*.supabase.co` e PyPI.

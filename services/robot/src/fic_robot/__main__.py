@@ -1,7 +1,7 @@
 """Ponto de entrada: `python -m fic_robot` (o iniciar.bat faz isso).
 
 Configuração por variáveis de ambiente ou pelo arquivo `robo.env` na pasta do robô (fora do git):
-  FIC_SUPABASE_URL, FIC_SUPABASE_KEY (chave publicável), FIC_CONSIG_URL,
+  FIC_SUPABASE_URL, FIC_SUPABASE_KEY (chave publicável), FIC_CONSIG_URL (padrão: login do BMG Consig),
   FIC_FAKE_FLOW=1 (só teste), FIC_POLL_SECONDS (padrão 3).
 """
 
@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import __version__
+from . import __version__, consig
 from . import redact as log
 from .api import ApiError, SupabaseApi
 from .auth import KeyringStore, SessionManager
@@ -34,6 +34,11 @@ def load_env_file(path: Path) -> None:
         if line and not line.startswith("#") and "=" in line:
             key, value = line.split("=", 1)
             os.environ.setdefault(key.strip(), value.strip())
+
+
+def chrome_browser() -> ChromeBrowser:
+    return ChromeBrowser(HOME / "chrome-profile", os.environ.get("FIC_CONSIG_URL") or consig.LOGIN_URL,
+                         consig.session_probe)
 
 
 def main() -> int:
@@ -57,8 +62,7 @@ def main() -> int:
             time.sleep(10)
 
     flow = select_flow()
-    browser = NoBrowser() if os.environ.get("FIC_FAKE_FLOW") == "1" else \
-        ChromeBrowser(HOME / "chrome-profile", os.environ.get("FIC_CONSIG_URL"))
+    browser = NoBrowser() if os.environ.get("FIC_FAKE_FLOW") == "1" else chrome_browser()
     worker = Worker(api, browser, flow, PendingResults(HOME / "pending-results.json"),
                     worker_id=f"{platform.node()}-robot"[:100], version=__version__)
     poll = float(os.environ.get("FIC_POLL_SECONDS", "3"))

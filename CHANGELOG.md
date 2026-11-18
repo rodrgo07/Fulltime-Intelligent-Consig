@@ -14,6 +14,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões s
   recusa reprocessar/falhar quando o robô já capturou o número (BUG-QA-002); rate limit devolve
   `{"error":"RATE_LIMITED"}` com a auditoria gravada (BUG-QA-001); fingerprint em HMAC numa tabela privada;
   `dashboard_counts()`; `release_job` respeita `job_max_attempts`; `robot_state`/`robot_commands` e RPCs do robô.
+- **Fluxo do Consig (parcial)** em `services/robot/src/fic_robot/consig.py`, a partir do mapeamento do backoffice:
+  abrir a digitação (BMG Consig → ConsigMais), CPF, entidade (INSS), confirmação do cadastro, produto
+  "Empréstimo Consignado" → Adicionar e tela de valores (corrige o `StaleElementReferenceException` do notebook
+  buscando o elemento de novo). Sonda de sessão (menu do BMG Consig ou aba do ConsigMais); "Abrir Consig" não
+  navega para a URL de login quando já há sessão. Sem etapa de envio o fluxo fica desligado (`Flow.complete`).
+  `ensaio.bat` roda as etapas mapeadas e para antes do envio. Formulário `supabase/forms/consig-inss-v1.sql`.
 - Removidos: `apps/desktop` (Tauri), `services/engine` (sidecar JSON-RPC + Playwright), updater e workflow de release.
 
 ### Removido

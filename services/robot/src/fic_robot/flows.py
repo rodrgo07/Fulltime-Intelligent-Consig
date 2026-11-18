@@ -1,8 +1,8 @@
 """Registro de fluxos.
 
-PRODUCTION_FLOW fica None até o fluxo real do Consig (código Selenium mapeado) ser encaixado.
-Sem fluxo, o robô não reserva nenhum job. O fluxo FALSO existe só para teste ponta a ponta e só liga com
-FIC_FAKE_FLOW=1; ele nunca abre o Consig.
+Produção: o fluxo do Consig (`consig.py`). Enquanto ele não tiver a etapa de envio mapeada (`Flow.complete`),
+`select_flow()` devolve None e o robô não reserva nenhum job; as etapas já mapeadas rodam no `ensaio.bat`.
+O fluxo FALSO existe só para teste ponta a ponta e só liga com FIC_FAKE_FLOW=1; ele nunca abre o Consig.
 """
 
 from __future__ import annotations
@@ -11,9 +11,8 @@ import os
 import time
 from typing import Any
 
+from .consig import consig_flow
 from .steps import Flow, ProposalResult, Step, StepContext, UnexpectedScreen
-
-PRODUCTION_FLOW: Flow | None = None
 
 
 class FakeFill(Step):
@@ -41,4 +40,5 @@ def fake_flow() -> Flow:
 def select_flow() -> Flow | None:
     if os.environ.get("FIC_FAKE_FLOW") == "1":
         return fake_flow()
-    return PRODUCTION_FLOW
+    flow = consig_flow()
+    return flow if flow.complete else None

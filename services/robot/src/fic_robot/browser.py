@@ -52,6 +52,10 @@ class ChromeBrowser:
         if not self.consig_url:
             log.warning("endereço do Consig não configurado (FIC_CONSIG_URL)")
             return
+        if self._driver is not None and self.session_state() == "authenticated":
+            # O endereço de login encerra a sessão: com login ativo, não navega.
+            log.info("Consig já está logado; nada a abrir")
+            return
         self.driver.get(self.consig_url)
 
     def session_state(self) -> str:

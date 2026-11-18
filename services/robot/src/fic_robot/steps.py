@@ -86,3 +86,8 @@ class Flow:
             raise ValueError(f"fluxo {self.id} com etapas repetidas")
         if sum(1 for s in self.steps if s.side_effect) > 1:
             raise ValueError(f"fluxo {self.id} com mais de uma etapa com efeito")
+
+    @property
+    def complete(self) -> bool:
+        """Só um fluxo que envia a proposta (e devolve o número) pode reservar jobs."""
+        return any(s.side_effect for s in self.steps)
